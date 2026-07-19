@@ -100,7 +100,7 @@
       const container = el.closest("article") || el;
       container.insertAdjacentElement("afterend", card);
     } catch (err) {
-      if (String(err?.message || err).includes("Extension context invalidated")) return;
+      if (!chrome.runtime?.id || String(err?.message || err).includes("Extension context invalidated")) return;
       console.error("[AI Water Meter]", err);
     }
   }

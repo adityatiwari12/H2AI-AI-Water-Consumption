@@ -9,27 +9,26 @@ const WATER_MODE_KEY = "awm_water_mode";
 const MODEL_PREFIX = "awm_lifetime_model_";
 
 const SITE_BADGES = {
-  chatgpt: {
-    bg: "#e8f8f3",
-    svg: '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 4a5 5 0 0 0-4.8 3.6A4.5 4.5 0 0 0 4 12a4.5 4.5 0 0 0 2.2 3.9A5 5 0 0 0 11 20a5 5 0 0 0 4.8-3.6A4.5 4.5 0 0 0 20 12a4.5 4.5 0 0 0-2.2-3.9A5 5 0 0 0 12 4Z" stroke="#10a37f" stroke-width="1.6" stroke-linejoin="round"/></svg>',
-  },
-  claude: {
-    bg: "#fbeee7",
-    svg: '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 4l2 6.2L20 12l-6 1.8L12 20l-2-6.2L4 12l6-1.8L12 4Z" fill="#d97757"/></svg>',
-  },
-  gemini: {
-    bg: "#eef0ff",
-    svg: '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 3c0 4.5 3 8.5 8 9-5 0.5-8 4.5-8 9 0-4.5-3-8.5-8-9 5-0.5 8-4.5 8-9Z" fill="url(#awmGeminiGrad)"/><defs><linearGradient id="awmGeminiGrad" x1="4" y1="3" x2="20" y2="21" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#4c8dff"/><stop offset="1" stop-color="#9a6bff"/></linearGradient></defs></svg>',
-  },
-  deepseek: {
-    bg: "#eaf0ff",
-    svg: '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 13c2-5 8-7 11-4.5-1.5-.3-3 .1-3.8 1 1.8-.3 3.6.4 4.6 2-1.6-.6-3-.4-3.8.3 1.6 0 3 .8 3.5 2.2-3-1.6-9-1.4-11.5 3Z" fill="#4d6bfe"/></svg>',
-  },
+  chatgpt: { bg: "#e8f8f3", file: "chatgpt.svg" },
+  claude: { bg: "#fbeee7", file: "claude.svg" },
+  gemini: { bg: "#eef0ff", file: "gemini.svg" },
+  deepseek: { bg: "#eaf0ff", file: "deepseek.svg" },
 };
 
 function badgeHtml(key) {
-  const b = SITE_BADGES[key] || { bg: "#eef1f6", svg: "" };
-  return `<span class="awm-popup-site-badge" style="background:${b.bg}">${b.svg}</span>`;
+  const b = SITE_BADGES[key];
+  if (!b) return `<span class="awm-popup-site-badge" style="background:#eef1f6"></span>`;
+  return `<span class="awm-popup-site-badge" style="background:${b.bg}"><img src="../icons/brand/${b.file}" alt="" /></span>`;
+}
+
+function providerBadgeHtml(provider) {
+  const key = (provider || "").toLowerCase();
+  if (key.includes("openai")) return badgeHtml("chatgpt");
+  if (key.includes("anthropic")) return badgeHtml("claude");
+  if (key.includes("google")) return badgeHtml("gemini");
+  if (key.includes("deepseek")) return badgeHtml("deepseek");
+  const initial = (provider || "?").charAt(0).toUpperCase();
+  return `<span class="awm-popup-site-badge" style="background:#eef1f6;font-size:11px;font-weight:700;color:#6b7280;display:flex;align-items:center;justify-content:center">${initial}</span>`;
 }
 
 const MODE_HINTS = {
@@ -120,11 +119,10 @@ async function renderModelBreakdown() {
   }
 
   rows.forEach((r) => {
-    const initial = (r.provider || r.displayName || r.modelId || "?").charAt(0).toUpperCase();
     const row = document.createElement("div");
     row.className = "awm-popup-site-row";
     row.innerHTML = `
-      <span class="awm-popup-site-badge" style="background:#eef1f6;font-size:11px;font-weight:700;color:#6b7280;display:flex;align-items:center;justify-content:center">${initial}</span>
+      ${providerBadgeHtml(r.provider)}
       <span class="awm-popup-site-name">${r.displayName || r.modelId}<div class="awm-popup-site-sub">${r.provider || ""}</div></span>
       <span class="awm-popup-site-stats">${fmtMl(r.waterMl || 0)} · ${fmtUsd(r.costUsd || 0)} <span class="awm-dim">(${r.count || 0})</span></span>
       <span class="awm-popup-chevron"></span>
