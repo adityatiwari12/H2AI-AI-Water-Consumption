@@ -1,0 +1,16 @@
+{
+  "name": "ai-water-meter-tests",
+  "version": "1.0.0",
+  "description": "Headless Playwright harness that loads the extension unpacked against static fixtures for each site.",
+  "main": "run.js",
+  "scripts": {
+    "test": "node run.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "playwright": "^1.61.1"
+  }
+}

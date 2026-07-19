@@ -1,0 +1,166 @@
+{
+  "lastVerified": "2026-07-19",
+  "_meta": {
+    "description": "Per-model cost, water, and energy config for AI Water Meter. Replaces the v1 flat TIERS system. See ai-water-meter-v2-prd.md for full sourcing discussion.",
+    "waterEnergyMethodology": {
+      "google-comprehensive": "Google's Aug 2025 technical paper (arXiv:2508.15734) / Google Cloud blog: median Gemini Apps text prompt measured at 0.24 Wh energy, 0.26 mL water, full-stack methodology (accelerators + host + idle capacity + datacenter overhead). Paper states this is a blended median across the Gemini Apps fleet for a prompt of roughly 500-700 output tokens; we scale from a 600-token baseline. Applied identically to gemini-3-flash and gemini-3-1-pro since Google did not publish a per-model split — flagged per-model in `notes`.",
+      "public-estimate-research": "University of Rhode Island AI Lab study (reported by Tom's Hardware/DCD, Aug 2025): measured average power draw per response for several deployed models by querying them directly and metering GPU power, not vendor-disclosed. GPT-5: avg 18.35 Wh, up to 40 Wh, for a medium-length ~1000-token response. DeepSeek R1: 20.90 Wh, same ~1000-token baseline. Where we lack a same-model figure (Claude family, gpt-5-4, deepseek-v3/v4-flash), water is derived from energy (or vice versa) using the Wh:mL ratio observed in Google's comprehensive figure (0.24 Wh : 0.26 mL, i.e. mL = Wh x 1.0833), and cross-model scaling uses each model's output-token price relative to a same-family reference model as a rough compute-intensity proxy. All such derived figures are flagged in that model's `notes` field — treat as the weakest-confidence numbers in this file.",
+      "baseline-note": "'Per-prompt' figures in both source studies are for a single response of a stated token length (600 tok for Google, 1000 tok for the URI study). We scale each source's own stated baseline linearly to a per-million-output-token rate rather than mixing baselines."
+    },
+    "mediaModels": "Image/video generation has real vendor $/unit pricing but essentially no published water/energy data anywhere. Per the v3 design decision, each mediaModels entry converts its unit (1 image, 1 second of video) to an output-token equivalent, then reuses (`referenceModelId`) an existing text model's waterMlPerOutputMTok/energyWhPerOutputMTok — no new environmental constants invented for media. `tokenEquivalentSource` is 'vendor-tokenized' when the provider publishes a real image-token count (currently only OpenAI's gpt-image family does, via its documented per-quality output-token counts), or 'price-derived' when we imputed the token-equivalent by dividing the media unit's price by the reference model's outputPricePerMTok (used for Google's Imagen/Veo, which are billed as flat per-unit prices with no published tokenization) — price-derived entries are the lowest-confidence numbers in this file.",
+    "researchMode": "Deep Research modes (ChatGPT, Gemini, and to a lesser extent Claude's web-search/research mode) run many hidden tool calls (web searches, page fetches) before producing a final answer; only the final rendered text is visible to a content script. defaultMultiplier is applied to the visible response's effective output-token count before the normal cost/water/energy math runs, as a single rough proxy for that invisible work. Derived from a real published cost breakdown for Gemini Deep Research (see researchMode.sourceUrl): a standard task's total real cost (~$0.95 inference + ~$1.12-2.24 Search grounding, call it ~$2.5) divided by what our own calc() would compute from tokenizing just the visible ~60K-token final report at Gemini 3.1 Pro's normal output rate (~$0.72) gives ~3.5x; rounded to 4x. This is much lower than an earlier unverified 10-20x guess floated before this data was found — trust this number over that one. Applied identically across providers/sites for lack of anything more specific; OpenAI's Deep Research uses a different, cheaper search-tool cost structure so 4x may still be off in either direction for it."
+  },
+  "models": {
+    "claude-haiku-4-5": {
+      "provider": "Anthropic",
+      "displayName": "Claude Haiku 4.5",
+      "inputPricePerMTok": 1.00,
+      "outputPricePerMTok": 5.00,
+      "waterMlPerOutputMTok": 15000,
+      "energyWhPerOutputMTok": 13830,
+      "methodologyTag": "public-estimate",
+      "sourceUrl": "https://cloud.google.com/blog/products/infrastructure/measuring-the-environmental-impact-of-ai-inference",
+      "notes": "No Anthropic-published or independently-measured water/energy figure exists for this model. Derived: public-estimate baseline (45 mL / 1000 output tokens, pre-2025 widely-cited figure, no vendor methodology) scaled down by this model's output price relative to claude-sonnet-5's ($5 vs $15/MTok = 0.33x) as a rough compute-intensity proxy, then water/energy cross-derived via Google's measured Wh:mL ratio. Confidence: low.",
+      "verified": "pricing confirmed via web search 2026-07-19 (unchanged from PRD); water/energy are derived estimates, not independently verified."
+    },
+    "claude-sonnet-5": {
+      "provider": "Anthropic",
+      "displayName": "Claude Sonnet 5",
+      "inputPricePerMTok": 2.00,
+      "outputPricePerMTok": 10.00,
+      "waterMlPerOutputMTok": 45000,
+      "energyWhPerOutputMTok": 41540,
+      "methodologyTag": "public-estimate",
+      "sourceUrl": "https://cloud.google.com/blog/products/infrastructure/measuring-the-environmental-impact-of-ai-inference",
+      "notes": "No Anthropic-published or independently-measured water/energy figure exists for this model. Water uses the generic public-estimate baseline (45 mL / 1000 output tokens); energy cross-derived via Google's measured Wh:mL ratio. Used as the reference point for scaling claude-haiku-4-5 and claude-opus-4-8. Confidence: low. PRICING NOTE: $2.00/$10.00 is Anthropic's introductory rate, expires 2026-08-31; standard rate becomes $3.00/$15.00 after that date. This file's `lastVerified` predates the switch — revisit before/at Sept 1 2026.",
+      "verified": "pricing confirmed via web search 2026-07-19 (unchanged from PRD, intro-rate window confirmed active); water/energy are derived estimates."
+    },
+    "claude-opus-4-8": {
+      "provider": "Anthropic",
+      "displayName": "Claude Opus 4.8",
+      "inputPricePerMTok": 5.00,
+      "outputPricePerMTok": 25.00,
+      "waterMlPerOutputMTok": 75000,
+      "energyWhPerOutputMTok": 69170,
+      "methodologyTag": "public-estimate",
+      "sourceUrl": "https://cloud.google.com/blog/products/infrastructure/measuring-the-environmental-impact-of-ai-inference",
+      "notes": "No Anthropic-published or independently-measured water/energy figure exists for this model. Derived: public-estimate baseline scaled up by this model's output price relative to claude-sonnet-5's ($25 vs $15/MTok = 1.67x), then cross-derived via Google's Wh:mL ratio. Fast Mode pricing ($10/$50) not modeled separately. Confidence: low.",
+      "verified": "pricing confirmed via web search 2026-07-19 (unchanged from PRD, Fast Mode $10/$50 also confirmed but not modeled here); water/energy are derived estimates."
+    },
+    "gpt-5": {
+      "provider": "OpenAI",
+      "displayName": "GPT-5",
+      "inputPricePerMTok": 0.625,
+      "outputPricePerMTok": 5.00,
+      "waterMlPerOutputMTok": 19880,
+      "energyWhPerOutputMTok": 18350,
+      "methodologyTag": "public-estimate",
+      "sourceUrl": "https://www.tomshardware.com/tech-industry/artificial-intelligence/chatgpt-5-power-consumption-could-be-as-much-as-eight-times-higher-than-gpt-4-research-institute-estimates-medium-sized-gpt-5-response-can-consume-up-to-40-watt-hours-of-electricity",
+      "notes": "Energy is a real independently-measured figure: University of Rhode Island AI Lab metered GPU power directly for a medium-length ~1000-token response, average 18.35 Wh (range up to 40 Wh) — not OpenAI-disclosed, but not fabricated either, it's the strongest non-Gemini figure available. Water has no independent source; cross-derived from the measured energy via Google's Wh:mL ratio. Confidence: medium (energy), low (water).",
+      "verified": "pricing confirmed via web search 2026-07-19 (unchanged from PRD's $0.625/$5.00 Azure-hosted rate; other hosts run up to $1.25 input); energy figure confirmed via web search 2026-07-19 (matches PRD's ~18Wh avg / 40Wh max)."
+    },
+    "gpt-5-4": {
+      "provider": "OpenAI",
+      "displayName": "GPT-5.4",
+      "inputPricePerMTok": 2.50,
+      "outputPricePerMTok": 15.00,
+      "waterMlPerOutputMTok": 19880,
+      "energyWhPerOutputMTok": 18350,
+      "methodologyTag": "public-estimate",
+      "sourceUrl": "https://www.tomshardware.com/tech-industry/artificial-intelligence/chatgpt-5-power-consumption-could-be-as-much-as-eight-times-higher-than-gpt-4-research-institute-estimates-medium-sized-gpt-5-response-can-consume-up-to-40-watt-hours-of-electricity",
+      "notes": "No independent water/energy study exists specifically for GPT-5.4 yet. Carried over GPT-5's measured energy/water figures as a placeholder assumption (same family, no evidence either direction) — replace as soon as a GPT-5.4-specific figure is published. Confidence: low.",
+      "verified": "pricing confirmed via web search 2026-07-19 (unchanged from PRD's $2.50/$15.00); water/energy are carried-over placeholders, not GPT-5.4-specific."
+    },
+    "gemini-3-flash": {
+      "provider": "Google",
+      "displayName": "Gemini 3 Flash",
+      "inputPricePerMTok": 0.50,
+      "outputPricePerMTok": 3.00,
+      "waterMlPerOutputMTok": 433,
+      "energyWhPerOutputMTok": 400,
+      "methodologyTag": "google-comprehensive",
+      "sourceUrl": "https://cloud.google.com/blog/products/infrastructure/measuring-the-environmental-impact-of-ai-inference",
+      "notes": "Google's disclosed figure (0.24 Wh, 0.26 mL per ~600-token median prompt) is a blended median across the whole Gemini Apps fleet, not published per-model. Applied identically here and to gemini-3-1-pro pending a per-model breakdown from Google. This is nonetheless the single most rigorous, methodology-disclosed figure in this file. Confidence: medium (real disclosure, but not model-specific).",
+      "verified": "pricing confirmed via web search 2026-07-19 (unchanged from PRD's $0.50/$3.00); water/energy figure confirmed via web search 2026-07-19 against Google's Aug 2025 paper (unchanged)."
+    },
+    "gemini-3-1-pro": {
+      "provider": "Google",
+      "displayName": "Gemini 3.1 Pro",
+      "inputPricePerMTok": 2.00,
+      "outputPricePerMTok": 12.00,
+      "waterMlPerOutputMTok": 433,
+      "energyWhPerOutputMTok": 400,
+      "methodologyTag": "google-comprehensive",
+      "sourceUrl": "https://cloud.google.com/blog/products/infrastructure/measuring-the-environmental-impact-of-ai-inference",
+      "notes": "Same blended fleet-median figure as gemini-3-flash — see that entry's note. Pricing rises to $4.00/$18.00 above 200K context tokens, not modeled here (base-tier rate used). Confidence: medium (real disclosure, but not model-specific).",
+      "verified": "pricing confirmed via web search 2026-07-19 (base tier unchanged from PRD's $2.00/$12.00; >200K-context step-up to $4/$18 newly confirmed, not previously in PRD); water/energy figure confirmed via web search 2026-07-19 (unchanged)."
+    },
+    "deepseek-v3": {
+      "provider": "DeepSeek",
+      "displayName": "DeepSeek V3",
+      "inputPricePerMTok": 0.27,
+      "outputPricePerMTok": 1.10,
+      "waterMlPerOutputMTok": 22640,
+      "energyWhPerOutputMTok": 20900,
+      "methodologyTag": "public-estimate",
+      "sourceUrl": "https://www.tomshardware.com/tech-industry/artificial-intelligence/chatgpt-5-power-consumption-could-be-as-much-as-eight-times-higher-than-gpt-4-research-institute-estimates-medium-sized-gpt-5-response-can-consume-up-to-40-watt-hours-of-electricity",
+      "notes": "No DeepSeek-V3-specific water/energy study found. Energy borrowed from the same URI Lab study's measurement of DeepSeek R1 (20.90 Wh avg, ~1000-token response, same provider/lineage though a different model) as the closest available real figure; water cross-derived via Google's Wh:mL ratio. IMPORTANT: DeepSeek has scheduled deepseek-chat/deepseek-reasoner (the V3-era API models) for deprecation on 2026-07-24 — this entry and deepseek.js's fallback default will need updating shortly after this file's lastVerified date. Confidence: low.",
+      "verified": "pricing confirmed via web search 2026-07-19 (unchanged from PRD's $0.27/$1.10); deprecation date is new information not in the PRD, flagged above. Water/energy are derived, not DeepSeek-V3-specific."
+    },
+    "deepseek-v4-flash": {
+      "provider": "DeepSeek",
+      "displayName": "DeepSeek V4 Flash",
+      "inputPricePerMTok": 0.14,
+      "outputPricePerMTok": 0.28,
+      "waterMlPerOutputMTok": 5760,
+      "energyWhPerOutputMTok": 5320,
+      "methodologyTag": "public-estimate",
+      "sourceUrl": "https://www.tomshardware.com/tech-industry/artificial-intelligence/chatgpt-5-power-consumption-could-be-as-much-as-eight-times-higher-than-gpt-4-research-institute-estimates-medium-sized-gpt-5-response-can-consume-up-to-40-watt-hours-of-electricity",
+      "notes": "No DeepSeek-V4-Flash-specific water/energy study found. Derived from deepseek-v3's borrowed R1 energy figure, scaled down by this model's output price relative to deepseek-v3's ($0.28 vs $1.10/MTok = 0.2545x) as a compute-intensity proxy. Cached-input rate ($0.0028/MTok) not modeled — cache hits will read as more expensive than they really are. Confidence: low.",
+      "verified": "pricing confirmed via web search 2026-07-19 (unchanged from PRD's $0.14/$0.28 cache-miss rate, cached-input rate $0.0028 also confirmed but not modeled); water/energy are derived, not DeepSeek-V4-specific."
+    }
+  },
+  "mediaModels": {
+    "gpt-image-1-5": {
+      "provider": "OpenAI",
+      "displayName": "GPT Image 1.5",
+      "mediaType": "image",
+      "unit": "image",
+      "pricePerUnit": 0.0338,
+      "tokenEquivalentPerUnit": 1056,
+      "tokenEquivalentSource": "vendor-tokenized",
+      "referenceModelId": "gpt-5",
+      "sourceUrl": "https://pricepertoken.com/gpt-image-pricing",
+      "notes": "OpenAI genuinely tokenizes generated images — 272/1056/4160 output tokens for low/medium/high quality at 1024x1024 on gpt-image-1.5 ($32/1M output tokens). This entry uses the medium-quality figure (1056 tok = $0.0338/image) as a representative default; real per-response quality varies. Water/energy borrowed from gpt-5's per-output-token rate (same provider infra) via referenceModelId — no image-specific environmental data exists. gpt-image-1 (the model originally scoped) is being retired 2026-10-23, so this uses its successor instead. Confidence: medium (real token count, borrowed environmental rate)."
+    },
+    "imagen-4-standard": {
+      "provider": "Google",
+      "displayName": "Imagen 4 (Standard)",
+      "mediaType": "image",
+      "unit": "image",
+      "pricePerUnit": 0.04,
+      "tokenEquivalentPerUnit": 3333,
+      "tokenEquivalentSource": "price-derived",
+      "referenceModelId": "gemini-3-1-pro",
+      "sourceUrl": "https://theplanettools.ai/blog/google-imagen-4-models-fast-standard-ultra-guide-2026",
+      "notes": "Google bills Imagen as a flat per-image price, not tokenized — no vendor-published token-equivalent exists. tokenEquivalentPerUnit is imputed: $0.04 / (gemini-3-1-pro's $12/MTok output rate) = 3333 tokens. Water/energy borrowed from gemini-3-1-pro's rate via referenceModelId, which is itself Google's real comprehensive-methodology figure — best-grounded entry in this section despite the price-derived token count. Confidence: medium-low (real environmental basis, imputed token count)."
+    },
+    "veo-3-1-fast": {
+      "provider": "Google",
+      "displayName": "Veo 3.1 (Fast)",
+      "mediaType": "video",
+      "unit": "second",
+      "pricePerUnit": 0.12,
+      "tokenEquivalentPerUnit": 10000,
+      "tokenEquivalentSource": "price-derived",
+      "referenceModelId": "gemini-3-1-pro",
+      "sourceUrl": "https://www.veo3ai.io/blog/veo-3-1-pricing-2026",
+      "notes": "Google bills Veo per second of output, not tokenized. tokenEquivalentPerUnit imputed the same way as imagen-4-standard: $0.12/sec (Fast tier midpoint of the $0.10-0.15 range; Lite is cheaper, Quality much pricier, audio adds more) / gemini-3-1-pro's output rate = 10000 tokens/sec. Each Veo generation caps at 8 seconds — a 9s+ video needs multiple generations, not modeled (adapter should multiply by clip count if detectable, otherwise treat one detected video as one 8s-or-shorter clip). Confidence: low (both price tier and token-equivalent are imputed/representative, not measured)."
+    }
+  },
+  "researchMode": {
+    "defaultMultiplier": 4,
+    "sourceUrl": "https://tokencost.app/blog/gemini-deep-research-agent-cost",
+    "notes": "See _meta.waterEnergyMethodology.researchMode for the full derivation. Applied to effective output tokens (cost + water + energy alike) for any response detected as a Deep-Research-style multi-step answer, uniformly across sites for lack of per-provider data. Confidence: low-medium (grounded in one real cost breakdown for one provider, extrapolated to all)."
+  }
+}

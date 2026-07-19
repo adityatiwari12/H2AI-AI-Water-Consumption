@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>H2AI by Tokenistt — See what every AI prompt actually costs</title>
+<meta name="description" content="H2AI is a free browser extension that shows the estimated water, cost, and token usage behind every ChatGPT, Claude, Gemini, and DeepSeek response. Built by Tokenistt." />
+<meta name="theme-color" content="#2F8FD8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --white: #FFFFFF;
+    --bg-soft: #F5F9FC;
+    --ink: #0B1B24;
+    --text-muted: #5B6B76;
+    --text-dim: #8A97A0;
+    --border: #E4EAF0;
+    --primary: #2F8FD8;
+    --primary-dark: #1F6BA8;
+    --primary-light: #6CC4F5;
+    --primary-tint: #EAF4FC;
+    --amber: #E8A320;
+    --amber-tint: #FDF3E1;
+    --ink-panel: #0E1A21;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background: var(--white);
+    color: var(--ink);
+    font-family: 'Inter', -apple-system, sans-serif;
+    line-height: 1.55;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, .display {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0;
+    color: var(--ink);
+  }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+  a { color: inherit; text-decoration: none; }
+  .wrap { max-width: 1140px; margin: 0 auto; padding: 0 28px; }
+
+  /* ---------- ambient bg blobs (glitter-style soft gradient) ---------- */
+  .blob-hero {
+    position: absolute;
+    top: -160px; left: 50%; transform: translateX(-50%);
+    width: 1100px; height: 640px;
+    background:
+      radial-gradient(ellipse 480px 320px at 30% 30%, rgba(47,143,216,0.16), transparent 60%),
+      radial-gradient(ellipse 420px 300px at 75% 20%, rgba(108,196,245,0.14), transparent 60%),
+      radial-gradient(ellipse 380px 280px at 55% 70%, rgba(232,163,32,0.08), transparent 65%);
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* ---------- nav ---------- */
+  nav {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(255,255,255,0.82);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-inner {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 28px; max-width: 1140px; margin: 0 auto;
+  }
+  .logo { display: flex; align-items: baseline; gap: 8px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 19px; }
+  .logo .mark { color: var(--primary); }
+  .logo .by { font-family: 'Inter', sans-serif; font-weight: 400; font-size: 13px; color: var(--text-dim); }
+  .nav-links { display: flex; gap: 30px; font-size: 14px; color: var(--text-muted); font-weight: 500; }
+  .nav-links a:hover { color: var(--ink); }
+  .nav-cta {
+    background: var(--ink);
+    color: var(--white);
+    font-weight: 600; font-size: 13.5px;
+    padding: 10px 20px; border-radius: 999px;
+  }
+  .nav-cta:hover { background: var(--primary-dark); }
+  @media (max-width: 760px) { .nav-links { display: none; } }
+
+  /* ---------- hero ---------- */
+  .hero {
+    position: relative; z-index: 1;
+    padding: 96px 0 0;
+    text-align: center;
+  }
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 600; color: var(--primary-dark);
+    background: var(--primary-tint);
+    border: 1px solid rgba(47,143,216,0.25);
+    padding: 7px 16px; border-radius: 999px;
+    margin-bottom: 26px;
+  }
+  .badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--primary); }
+
+  .hero h1 {
+    font-size: 58px; line-height: 1.06;
+    max-width: 760px; margin: 0 auto 22px;
+  }
+  .hero h1 em {
+    font-style: normal;
+    background: linear-gradient(180deg, var(--primary-light), var(--primary));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  @media (max-width: 640px) { .hero h1 { font-size: 38px; } }
+
+  .hero p.lede {
+    font-size: 18px; color: var(--text-muted);
+    max-width: 540px; margin: 0 auto 34px;
+  }
+
+  .hero-ctas { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 18px; }
+  .btn-primary {
+    background: var(--primary);
+    color: var(--white);
+    font-weight: 600; font-size: 15px;
+    padding: 15px 28px; border-radius: 12px;
+    display: inline-flex; align-items: center; gap: 8px;
+    box-shadow: 0 10px 26px rgba(47,143,216,0.28);
+  }
+  .btn-primary:hover { background: var(--primary-dark); }
+  .btn-secondary {
+    border: 1px solid var(--border);
+    background: var(--white);
+    color: var(--ink);
+    font-weight: 600; font-size: 15px;
+    padding: 15px 24px; border-radius: 12px;
+  }
+  .btn-secondary:hover { border-color: var(--primary); }
+
+  .trust-line { font-size: 13.5px; color: var(--text-dim); margin-bottom: 56px; }
+  .trust-line b { color: var(--text-muted); font-weight: 600; }
+
+  /* ---------- demo panel (hero visual, glitter-style: big, centered, under headline) ---------- */
+  .demo-outer { position: relative; z-index: 1; padding: 0 0 100px; }
+  .demo-frame {
+    max-width: 760px; margin: 0 auto;
+    background: var(--ink-panel);
+    border-radius: 24px;
+    padding: 22px;
+    box-shadow: 0 40px 90px rgba(11,27,34,0.22);
+  }
+  .demo-chrome { display: flex; gap: 6px; margin-bottom: 16px; padding: 0 4px; }
+  .demo-chrome span { width: 9px; height: 9px; border-radius: 50%; background: #223038; }
+  .demo-chat { background: #081014; border-radius: 14px; padding: 22px 20px; min-height: 250px; }
+  .demo-msg-user {
+    background: #16232A; color: #EAF6FF; font-size: 13.5px;
+    padding: 9px 13px; border-radius: 12px; max-width: 74%;
+    margin-left: auto; margin-bottom: 16px;
+  }
+  .demo-msg-ai { font-size: 13.5px; color: #CBD6DC; margin-bottom: 16px; line-height: 1.6; }
+
+  .awm-card {
+    display: flex; align-items: flex-start; gap: 14px;
+    background: #111214; border: 1px solid #2a2c31; border-radius: 16px;
+    padding: 14px 16px; margin: 6px 0 4px; font-family: 'Inter', sans-serif; color: #e7e8ea;
+    animation: awm-fade-in 0.25s ease-out;
+  }
+  @keyframes awm-fade-in { from { opacity:0; transform:translateY(4px);} to {opacity:1; transform:translateY(0);} }
+  .awm-icon-wrap { flex-shrink: 0; width: 44px; height: 58px; display:flex; align-items:flex-end; justify-content:center; }
+  .awm-glass-svg { width: 44px; height: 58px; }
+  .awm-icon-wrap.awm-animate .awm-glass-svg path[clip-path] { transition: y 0.9s cubic-bezier(0.22,1,0.36,1); }
+  .awm-body { flex: 1; min-width: 0; }
+  .awm-header { display:flex; align-items:center; justify-content:space-between; }
+  .awm-title { font-weight:600; font-size:13px; color:#f2f3f5; font-family:'Space Grotesk',sans-serif; }
+  .awm-sub { font-size:11.5px; color:#8a8f98; margin-top:1px; }
+  .awm-mainstat { font-size:22px; font-weight:700; color:#fff; margin-top:6px; letter-spacing:-0.3px; font-family:'JetBrains Mono',monospace; }
+  .awm-bar { width:100%; height:5px; background:#24262b; border-radius:3px; margin-top:8px; overflow:hidden; }
+  .awm-bar-fill { height:100%; background:linear-gradient(90deg,#4fa8ea,#2f8fd8); border-radius:3px; transition:width 0.9s cubic-bezier(0.22,1,0.36,1); }
+  .awm-row { display:flex; align-items:center; gap:6px; margin-top:9px; flex-wrap:wrap; }
+  .awm-chip { font-size:11px; font-weight:500; background:#1c1e22; border:1px solid #2a2c31; color:#cfd2d8; padding:3px 8px; border-radius:999px; white-space:nowrap; font-family:'JetBrains Mono',monospace; }
+  .awm-chip-muted { color:#7d828b; }
+  .awm-info { font-size:12px; color:#7d828b; }
+
+  .demo-caption { text-align: center; font-size: 13px; color: var(--text-dim); margin-top: 20px; }
+  .demo-caption b { color: var(--primary-dark); font-weight: 600; }
+
+  /* ---------- trust strip ---------- */
+  .platform-strip {
+    display: flex; justify-content: center; align-items: center; gap: 14px;
+    flex-wrap: wrap; margin-top: -60px; margin-bottom: 90px; position: relative; z-index: 1;
+  }
+  .platform-strip .label { font-size: 12.5px; color: var(--text-dim); margin-right: 6px; }
+  .platform-chip {
+    font-size: 13px; font-weight: 600; color: var(--text-muted);
+    border: 1px solid var(--border); background: var(--white);
+    padding: 7px 16px; border-radius: 999px;
+  }
+
+  /* ---------- sections ---------- */
+  section { position: relative; z-index: 1; padding: 70px 0; }
+  .section-head { max-width: 620px; margin: 0 auto 52px; text-align: center; }
+  .section-head .badge { margin-bottom: 16px; }
+  .section-head h2 { font-size: 36px; margin-bottom: 14px; }
+  .section-head p { color: var(--text-muted); font-size: 16px; }
+
+  /* how it works — numbered, glitter-style */
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+  @media (max-width: 860px) { .steps { grid-template-columns: 1fr; } }
+  .step {
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 30px 26px;
+  }
+  .step .num {
+    width: 34px; height: 34px; border-radius: 10px;
+    background: var(--primary); color: var(--white);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 15px;
+    margin-bottom: 18px;
+  }
+  .step h3 { font-size: 17.5px; margin-bottom: 8px; }
+  .step p { color: var(--text-muted); font-size: 14.5px; margin: 0; }
+
+  /* features grid */
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  @media (max-width: 860px) { .grid-3 { grid-template-columns: 1fr; } }
+  .feature {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 26px 24px;
+    transition: border-color .15s, transform .15s;
+  }
+  .feature:hover { border-color: var(--primary); transform: translateY(-2px); }
+  .feature .icon {
+    width: 40px; height: 40px; border-radius: 11px;
+    background: var(--primary-tint);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 16px; color: var(--primary-dark); font-size: 18px; font-weight: 600;
+  }
+  .feature h3 { font-size: 16.5px; margin-bottom: 8px; }
+  .feature p { color: var(--text-muted); font-size: 14px; margin: 0; }
+
+  /* honesty band */
+  .honesty {
+    background: var(--amber-tint);
+    border: 1px solid rgba(232,163,32,0.30);
+    border-radius: 20px;
+    padding: 36px;
+    display: grid; grid-template-columns: auto 1fr; gap: 22px; align-items: flex-start;
+    max-width: 900px; margin: 0 auto;
+  }
+  .honesty .mark {
+    width: 42px; height: 42px; border-radius: 11px;
+    background: var(--amber); color: var(--white);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-family: 'Space Grotesk', sans-serif; font-size: 18px;
+  }
+  .honesty h3 { font-size: 17.5px; margin-bottom: 10px; }
+  .honesty p { color: #7A5A0C; font-size: 14.5px; margin: 0 0 8px; }
+  .honesty a { color: var(--primary-dark); text-decoration: underline; }
+  @media (max-width: 560px) { .honesty { grid-template-columns: 1fr; } }
+
+  /* tokenistt band */
+  .tokenistt {
+    background: var(--ink-panel);
+    border-radius: 24px;
+    padding: 52px 44px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 44px; align-items: center;
+    color: #DCE7ED;
+  }
+  @media (max-width: 860px) { .tokenistt { grid-template-columns: 1fr; padding: 34px 26px; } }
+  .tokenistt-mark { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 24px; margin-bottom: 16px; color: #fff; }
+  .tokenistt p { color: #9DAEB8; font-size: 15px; margin-bottom: 14px; }
+  .tokenistt .btn-primary { margin-top: 8px; }
+  .tokenistt-side {
+    background: #081014; border: 1px solid #1E2F38; border-radius: 16px; padding: 24px;
+  }
+  .tokenistt-side .line { display:flex; justify-content:space-between; padding: 11px 0; border-bottom: 1px solid #1E2F38; font-size: 13.5px; }
+  .tokenistt-side .line:last-child { border-bottom: none; }
+  .tokenistt-side .line span:first-child { color: #6E7F89; }
+  .tokenistt-side .line span:last-child { color: #EAF6FF; font-weight: 500; }
+
+  /* FAQ accordion (glitter uses one; legit content vs. fabricated testimonials) */
+  .faq { max-width: 780px; margin: 0 auto; }
+  .faq-item { border-bottom: 1px solid var(--border); }
+  .faq-q {
+    width: 100%; text-align: left; background: none; border: none; cursor: pointer;
+    padding: 22px 4px; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 16px;
+    display: flex; justify-content: space-between; align-items: center; color: var(--ink);
+  }
+  .faq-q .plus { font-size: 20px; color: var(--primary); transition: transform .2s; font-weight: 400; }
+  .faq-item.open .faq-q .plus { transform: rotate(45deg); }
+  .faq-a { max-height: 0; overflow: hidden; transition: max-height .25s ease; }
+  .faq-item.open .faq-a { max-height: 300px; }
+  .faq-a p { color: var(--text-muted); font-size: 14.5px; padding: 0 4px 22px; margin: 0; }
+
+  /* final CTA */
+  .final-cta {
+    text-align: center; padding: 64px 40px;
+    background: linear-gradient(180deg, var(--primary-tint), var(--white));
+    border: 1px solid var(--border);
+    border-radius: 24px;
+  }
+  .final-cta h2 { font-size: 32px; margin-bottom: 14px; }
+  .final-cta p { color: var(--text-muted); margin-bottom: 28px; }
+
+  footer { position: relative; z-index: 1; border-top: 1px solid var(--border); padding: 52px 0 30px; margin-top: 30px; }
+  .footer-grid { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); gap: 32px; margin-bottom: 40px; }
+  @media (max-width: 760px) { .footer-grid { grid-template-columns: 1fr 1fr; } }
+  .footer-brand .logo { margin-bottom: 10px; }
+  .footer-brand p { color: var(--text-dim); font-size: 13.5px; max-width: 240px; }
+  .footer-col h4 { font-size: 13px; color: var(--text-dim); margin-bottom: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  .footer-col a { display: block; font-size: 14px; color: var(--text-muted); margin-bottom: 10px; }
+  .footer-col a:hover { color: var(--ink); }
+  .footer-bottom {
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+    padding-top: 24px; border-top: 1px solid var(--border);
+    font-size: 13px; color: var(--text-dim);
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <div class="logo"><span class="mark">H2AI</span> <span class="by">by Tokenistt</span></div>
+    <div class="nav-links">
+      <a href="#demo">Live demo</a>
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="#tokenistt">Tokenistt</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <a href="#install" class="nav-cta">Add to Chrome — Free</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="blob-hero"></div>
+  <div class="wrap" style="position:relative;">
+    <div class="badge"><span class="dot"></span> Free, from Tokenistt</div>
+    <h1>See what every <em>AI prompt</em> actually costs</h1>
+    <p class="lede">H2AI drops a small receipt under every ChatGPT, Claude, Gemini, and DeepSeek response — estimated tokens, cost, and water, right where you're already chatting.</p>
+    <div class="hero-ctas">
+      <a href="#install" class="btn-primary">Add to Chrome — it's free →</a>
+      <a href="#demo" class="btn-secondary">Watch it work</a>
+    </div>
+    <div class="trust-line"><b>No account</b> · <b>100% local</b> · <b>Free forever</b></div>
+  </div>
+</div>
+
+<div class="demo-outer" id="demo">
+  <div class="wrap">
+    <div class="demo-frame">
+      <div class="demo-chrome"><span></span><span></span><span></span></div>
+      <div class="demo-chat">
+        <div class="demo-msg-user" id="demoPrompt">Explain how transformers work</div>
+        <div class="demo-msg-ai" id="demoAnswer">Transformers process sequences using self-attention, letting every token weigh every other token's relevance at once instead of reading left-to-right like older RNNs...</div>
+        <div class="awm-card" id="awmDemoCard">
+          <div class="awm-icon-wrap" id="awmIconWrap"></div>
+          <div class="awm-body">
+            <div class="awm-header">
+              <span class="awm-title">Water Used</span>
+              <span class="awm-info">ⓘ</span>
+            </div>
+            <div class="awm-sub">Water used in this response</div>
+            <div class="awm-mainstat" id="awmMainStat">0 mL</div>
+            <div class="awm-bar"><div class="awm-bar-fill" id="awmBarFill" style="width:0%"></div></div>
+            <div class="awm-row">
+              <span class="awm-chip" id="awmCostChip">$0.0000 est. cost</span>
+              <span class="awm-chip awm-chip-muted" id="awmTokChip">0 in · 0 out tokens</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="demo-caption">This is the <b>real card</b>, cycling through example responses — not a screenshot.</div>
+  </div>
+</div>
+
+<div class="platform-strip">
+  <span class="label">Works on</span>
+  <span class="platform-chip">ChatGPT</span>
+  <span class="platform-chip">Claude</span>
+  <span class="platform-chip">Gemini</span>
+  <span class="platform-chip">DeepSeek</span>
+</div>
+
+<div class="wrap">
+
+  <!-- HOW IT WORKS -->
+  <section id="how">
+    <div class="section-head">
+      <div class="badge"><span class="dot"></span> Under the hood</div>
+      <h2>How it works</h2>
+      <p>No setup beyond installing it once.</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="num">1</div>
+        <h3>Install &amp; forget</h3>
+        <p>Add the extension once. It quietly watches for finished responses on the sites you already use.</p>
+      </div>
+      <div class="step">
+        <div class="num">2</div>
+        <h3>Read, don't intercept</h3>
+        <p>H2AI never touches your prompt data or API keys — it reads the visible response text already on your screen.</p>
+      </div>
+      <div class="step">
+        <div class="num">3</div>
+        <h3>Estimate &amp; display</h3>
+        <p>A card appears under the response with tokens, cost, and water — and adds to your running session total.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section id="features">
+    <div class="section-head">
+      <div class="badge"><span class="dot"></span> What it shows</div>
+      <h2>Four numbers, every response</h2>
+      <p>H2AI reads the length of the response you just got and estimates what it took to make.</p>
+    </div>
+    <div class="grid-3">
+      <div class="feature">
+        <div class="icon">💧</div>
+        <h3>Water, estimated honestly</h3>
+        <p>Scaled from published research on AI inference water use — methodology one tap away.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">$</div>
+        <h3>Cost per response</h3>
+        <p>Input and output tokens priced against current API rates for the model you're talking to.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">#</div>
+        <h3>Token usage</h3>
+        <p>See input vs. output tokens separately — the number that actually drives cost and footprint.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">↻</div>
+        <h3>Session &amp; lifetime totals</h3>
+        <p>A running tally for the conversation you're in, plus a lifetime total across every site.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">◈</div>
+        <h3>Per-model accuracy</h3>
+        <p>Haiku and Opus don't cost the same — H2AI detects the model in use and adjusts accordingly.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">⌁</div>
+        <h3>100% local</h3>
+        <p>Every calculation happens in your browser. No prompt or response text is ever sent anywhere.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- HONESTY -->
+  <section style="padding-top:0;">
+    <div class="honesty">
+      <div class="mark">i</div>
+      <div>
+        <h3>These numbers are estimates — and we say so, on every card.</h3>
+        <p>No AI provider publishes real per-query water or energy data. H2AI estimates from response length using published research (including Google's 2025 Gemini inference study) and current public API pricing. Built for awareness, not as an audited metering tool — every card links to the methodology behind its number.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- TOKENISTT -->
+  <section id="tokenistt">
+    <div class="tokenistt">
+      <div>
+        <div class="tokenistt-mark">Built by Tokenistt</div>
+        <p>Tokenistt is an AI infrastructure startup building the tooling layer for how people and teams work with AI models. H2AI started as an internal curiosity about what a single prompt actually costs — we're releasing it free for anyone to use.</p>
+        <p>This extension is free, always will be, and isn't a product pitch — it's a small, honest tool from a team that spends most of its day thinking about AI infrastructure.</p>
+        <a href="#install" class="btn-primary">Get H2AI free →</a>
+      </div>
+      <div class="tokenistt-side">
+        <div class="line"><span>Company</span><span>Tokenistt</span></div>
+        <div class="line"><span>Focus</span><span>AI infrastructure</span></div>
+        <div class="line"><span>H2AI price</span><span>Free, always</span></div>
+        <div class="line"><span>Data collection</span><span>None</span></div>
+        <div class="line"><span>Supported sites</span><span>4</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq">
+    <div class="section-head">
+      <div class="badge"><span class="dot"></span> Questions</div>
+      <h2>Frequently asked questions</h2>
+    </div>
+    <div class="faq" id="faqList">
+      <div class="faq-item open">
+        <button class="faq-q">Is H2AI actually free? <span class="plus">+</span></button>
+        <div class="faq-a"><p>Yes — free forever, no account, no paid tier. It's a small tool Tokenistt built and is giving away.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">Are the water and cost numbers exact? <span class="plus">+</span></button>
+        <div class="faq-a"><p>No — they're estimates based on response length, published research, and current public API pricing. No AI provider discloses real per-query figures, so treat this as an awareness tool, not a metering device. Every card links to the methodology behind its number.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">Does H2AI send my conversations anywhere? <span class="plus">+</span></button>
+        <div class="faq-a"><p>No. All calculation happens locally in your browser using chrome.storage. No prompt or response text is ever transmitted.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">Which sites are supported? <span class="plus">+</span></button>
+        <div class="faq-a"><p>ChatGPT, Claude, Gemini, and DeepSeek today. More may be added later.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">Why did Tokenistt build this? <span class="plus">+</span></button>
+        <div class="faq-a"><p>It started as an internal curiosity about what a single AI prompt actually costs — in tokens, dollars, and water. We thought it was worth sharing.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FINAL CTA -->
+  <section id="install">
+    <div class="final-cta">
+      <h2>Add H2AI in under a minute</h2>
+      <p>Free forever. Works alongside ChatGPT, Claude, Gemini, and DeepSeek.</p>
+      <a href="#" class="btn-primary">Add to Chrome — Free →</a>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <div class="wrap">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <div class="logo"><span class="mark">H2AI</span></div>
+        <p>A free tool from Tokenistt that shows what every AI prompt actually costs.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Product</h4>
+        <a href="#features">Features</a>
+        <a href="#how">How it works</a>
+        <a href="#faq">FAQ</a>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <a href="#tokenistt">About Tokenistt</a>
+        <a href="#">GitHub</a>
+      </div>
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <a href="#">Privacy</a>
+        <a href="#">Terms</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div>© 2026 Tokenistt. H2AI is free and open source.</div>
+      <div>Made in Indore.</div>
+    </div>
+  </div>
+</footer>
+
+<script>
+// FAQ accordion
+document.querySelectorAll('.faq-q').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const item = btn.closest('.faq-item');
+    document.querySelectorAll('.faq-item').forEach(i => { if (i !== item) i.classList.remove('open'); });
+    item.classList.toggle('open');
+  });
+});
+
+// ---- ported directly from content/core.js so the demo is a real, working
+// instance of the same rendering logic used in the extension ----
+const GLASS_ML = 250;
+const GLASSES_PER_BUCKET = 10;
+const BUCKET_ML = GLASS_ML * GLASSES_PER_BUCKET;
+
+function fmtMl(ml) { return ml >= 1000 ? (ml/1000).toFixed(2) + " L" : ml.toFixed(0) + " mL"; }
+function fmtUsd(usd) { return "$" + usd.toFixed(4); }
+
+function glassSVG(fillPercent) {
+  const p = Math.max(0, Math.min(100, fillPercent));
+  const topY = 10 + (66 * (100 - p)) / 100;
+  return `<svg viewBox="0 0 60 84" class="awm-glass-svg">
+    <defs><clipPath id="dClip"><rect x="0" y="${topY}" width="60" height="84"/></clipPath></defs>
+    <path d="M12 10 L48 10 L42 74 Q30 80 18 74 Z" fill="none" stroke="#5b6270" stroke-width="2.5"/>
+    <path d="M12 10 L48 10 L42 74 Q30 80 18 74 Z" fill="url(#dGrad)" clip-path="url(#dClip)"/>
+    <linearGradient id="dGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6cc4f5"/><stop offset="100%" stop-color="#2f8fd8"/>
+    </linearGradient>
+  </svg>`;
+}
+function bucketSVG(fillPercent) {
+  const p = Math.max(0, Math.min(100, fillPercent));
+  const topY = 18 + (56 * (100 - p)) / 100;
+  return `<svg viewBox="0 0 60 84" class="awm-glass-svg">
+    <defs><clipPath id="dClipB"><rect x="0" y="${topY}" width="60" height="84"/></clipPath></defs>
+    <path d="M10 22 L50 22 L44 76 Q30 82 16 76 Z" fill="none" stroke="#5b6270" stroke-width="2.5"/>
+    <path d="M10 22 L50 22 L44 76 Q30 82 16 76 Z" fill="url(#dGrad2)" clip-path="url(#dClipB)"/>
+    <path d="M16 24 Q30 8 44 24" fill="none" stroke="#5b6270" stroke-width="3"/>
+    <linearGradient id="dGrad2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6cc4f5"/><stop offset="100%" stop-color="#2f8fd8"/>
+    </linearGradient>
+  </svg>`;
+}
+function iconFor(ml) { return ml >= BUCKET_ML * 0.999 ? "bucket" : "glass"; }
+function renderIcon(kind, fillPercent) { return kind === "bucket" ? bucketSVG(fillPercent) : glassSVG(fillPercent); }
+
+const examples = [
+  { prompt: "Explain how transformers work", answer: "Transformers process sequences using self-attention, letting every token weigh every other token's relevance at once instead of reading left-to-right like older RNNs...", waterMl: 34, costUsd: 0.0062, inTok: 6, outTok: 210 },
+  { prompt: "Write a short product description for a water bottle", answer: "Insulated, leakproof, and built for the day you didn't plan for — keeps drinks cold for 24 hours.", waterMl: 9, costUsd: 0.0014, inTok: 9, outTok: 42 },
+  { prompt: "Give me a detailed 6-month roadmap for launching a SaaS product, including hiring plan", answer: "Month 1-2: validate the problem with 20 customer interviews, ship a thin MVP focused on the single core workflow, and set up basic analytics. Month 3: onboard first 10 paying pilot customers, hire a founding engineer if you're not already two, cut anything that isn't core...", waterMl: 96, costUsd: 0.0181, inTok: 18, outTok: 640 },
+];
+
+let i = 0;
+function renderDemo() {
+  const ex = examples[i % examples.length];
+  document.getElementById("demoPrompt").textContent = ex.prompt;
+  document.getElementById("demoAnswer").textContent = ex.answer;
+  document.getElementById("awmMainStat").textContent = fmtMl(ex.waterMl);
+  document.getElementById("awmCostChip").textContent = fmtUsd(ex.costUsd) + " est. cost";
+  document.getElementById("awmTokChip").textContent = ex.inTok + " in · " + ex.outTok + " out tokens";
+
+  const kind = iconFor(ex.waterMl);
+  const targetMl = kind === "bucket" ? BUCKET_ML : GLASS_ML;
+  const targetPct = Math.min(100, (ex.waterMl / targetMl) * 100);
+
+  const iconWrap = document.getElementById("awmIconWrap");
+  const barFill = document.getElementById("awmBarFill");
+  iconWrap.innerHTML = renderIcon(kind, 0);
+  barFill.style.width = "0%";
+
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      iconWrap.innerHTML = renderIcon(kind, targetPct);
+      iconWrap.classList.add("awm-animate");
+      barFill.style.width = targetPct + "%";
+    }, 80);
+  });
+  i++;
+}
+renderDemo();
+setInterval(renderDemo, 3600);
+</script>
+
+</body>
+</html>

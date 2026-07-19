@@ -1,0 +1,412 @@
+body {
+  margin: 0;
+  width: 360px;
+  background: #f4f7fc;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: #16181d;
+}
+
+.awm-popup {
+  padding: 18px;
+}
+
+/* Header */
+
+.awm-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.awm-popup-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.awm-logo {
+  width: 30px;
+  height: 30px;
+  flex: none;
+}
+
+.awm-popup-title {
+  font-weight: 800;
+  font-size: 19px;
+  line-height: 1.1;
+  color: #0d1117;
+}
+
+.awm-accent {
+  color: #2f7fed;
+}
+
+.awm-popup-sub {
+  font-size: 11px;
+  color: #8a92a3;
+  margin-top: 1px;
+}
+
+.awm-popup-by {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  text-decoration: none;
+}
+
+.awm-popup-by:hover {
+  text-decoration: underline;
+}
+
+.awm-tokenistt-logo {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  vertical-align: middle;
+}
+
+.awm-popup-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.awm-icon-btn {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border: 1px solid #e3e8f0;
+  border-radius: 999px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.awm-icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.awm-icon-btn:hover {
+  background: #eef3fb;
+}
+
+.awm-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 1px solid #b7c0d1;
+  color: #8a92a3;
+  font-size: 9px;
+  font-style: normal;
+  line-height: 1;
+  cursor: default;
+  vertical-align: middle;
+}
+
+/* Hero card */
+
+.awm-popup-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: linear-gradient(135deg, #e7f0ff 0%, #eef4ff 60%, #f3f7ff 100%);
+  border-radius: 18px;
+  padding: 16px 18px;
+  margin-bottom: 10px;
+}
+
+.awm-hero-drop {
+  width: 56px;
+  height: 56px;
+  flex: none;
+}
+
+.awm-popup-hero-label {
+  font-size: 12.5px;
+  color: #4b5568;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.awm-popup-hero-value {
+  font-size: 32px;
+  font-weight: 800;
+  color: #0d1117;
+  margin-top: 2px;
+  line-height: 1.1;
+}
+
+.awm-popup-hero-unit {
+  font-size: 16px;
+  font-weight: 700;
+  color: #2f7fed;
+  margin-left: 4px;
+}
+
+.awm-popup-hero-sub {
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+/* Stat row */
+
+.awm-popup-statrow {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.awm-popup-stat {
+  flex: 1;
+  background: #ffffff;
+  border: 1px solid #e7ebf2;
+  border-radius: 16px;
+  padding: 12px 14px;
+}
+
+.awm-popup-stat-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #e7f0ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.awm-popup-stat-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.awm-popup-stat-label {
+  font-size: 11px;
+  color: #4b5568;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.awm-popup-stat-value {
+  font-size: 19px;
+  font-weight: 800;
+  color: #0d1117;
+}
+
+.awm-popup-stat-sub {
+  font-size: 10.5px;
+  color: #8a92a3;
+  margin-top: 2px;
+}
+
+/* Mode card */
+
+.awm-popup-mode {
+  background: #ffffff;
+  border: 1px solid #e7ebf2;
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+
+.awm-popup-mode-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #16181d;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.awm-popup-mode-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.awm-popup-mode-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 8px;
+  background: #ffffff;
+  border: 1.5px solid #e3e8f0;
+  color: #6b7280;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.awm-popup-mode-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.awm-popup-mode-btn.awm-active {
+  background: #eef4ff;
+  border-color: #2f7fed;
+  color: #2f7fed;
+}
+
+.awm-popup-mode-hint {
+  font-size: 10.5px;
+  color: #8a92a3;
+  line-height: 1.5;
+  margin-top: 10px;
+}
+
+/* Tabs */
+
+.awm-popup-tabs {
+  display: flex;
+  gap: 18px;
+  border-bottom: 1px solid #e7ebf2;
+  margin-bottom: 6px;
+}
+
+.awm-popup-tab {
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 8px 2px 9px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #8a92a3;
+  cursor: pointer;
+}
+
+.awm-popup-tab.awm-active {
+  color: #2f7fed;
+  border-bottom-color: #2f7fed;
+}
+
+/* Site / model list */
+
+.awm-popup-sites {
+  display: flex;
+  flex-direction: column;
+}
+
+.awm-popup-site-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 2px;
+  border-bottom: 1px solid #eef1f6;
+}
+
+.awm-popup-site-row:last-child {
+  border-bottom: none;
+}
+
+.awm-popup-site-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.awm-popup-site-badge svg {
+  width: 16px;
+  height: 16px;
+}
+
+.awm-popup-site-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: #16181d;
+}
+
+.awm-popup-site-sub {
+  color: #8a92a3;
+  font-size: 10.5px;
+  font-weight: 400;
+  margin-top: 1px;
+}
+
+.awm-popup-site-stats {
+  font-size: 12px;
+  color: #2f7fed;
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.awm-popup-site-stats .awm-dim {
+  color: #8a92a3;
+  font-weight: 500;
+}
+
+.awm-popup-chevron {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-top: 1.6px solid #c2c8d3;
+  border-right: 1.6px solid #c2c8d3;
+  transform: rotate(45deg);
+  margin-left: 2px;
+}
+
+/* Reset button */
+
+.awm-popup-reset {
+  width: 100%;
+  margin-top: 14px;
+  padding: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: #eef4ff;
+  border: none;
+  color: #2f7fed;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.awm-popup-reset svg {
+  width: 15px;
+  height: 15px;
+}
+
+.awm-popup-reset:hover {
+  background: #e2ecff;
+}
+
+.awm-popup-footnote {
+  margin-top: 12px;
+  font-size: 10.5px;
+  color: #9aa1ae;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.awm-popup-footnote a {
+  color: #2f7fed;
+  text-decoration: none;
+}
+
+.awm-popup-footnote a:hover {
+  text-decoration: underline;
+}
