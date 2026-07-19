@@ -37,6 +37,17 @@
     return { modelId: DEFAULT_MODEL, detected: false };
   }
 
+  // BEST-EFFORT content-type detection: neither selector has been checked
+  // against a live page. Claude has no native image/video generation in
+  // chat, so only Artifacts (a side-panel document/code view) and Claude's
+  // web-search/research mode are detected here. If these never fire,
+  // inspect a real Artifact or research response in devtools and correct
+  // the selector.
+  const CONTENT_DETECTORS = {
+    artifactSelector: '[data-testid="artifact"], [data-testid*="artifact" i]',
+    researchSelector: '[data-testid*="research" i], [class*="research" i]',
+  };
+
   const processed = new WeakSet();
   const debounceTimers = new WeakMap();
 
@@ -62,23 +73,36 @@
     if (processed.has(el)) return;
     const turn = el.closest('[data-testid="conversation-turn"]') || el;
     if (processed.has(turn)) return;
+    // If the extension was reloaded/updated in chrome://extensions since
+    // this page loaded, this content script instance is orphaned and any
+    // chrome.* call below throws "Extension context invalidated" — bail
+    // quietly rather than spamming the console (a page refresh fixes it).
+    if (!chrome.runtime?.id) return;
     processed.add(el);
     processed.add(turn);
 
-    const responseText = el.innerText || "";
-    if (!responseText.trim() || responseText.trim().length < 3) return;
+    try {
+      const rawText = el.innerText || "";
+      if (!rawText.trim() || rawText.trim().length < 3) return;
 
-    const promptText = getLastUserPromptBefore(el);
-    const { modelId, detected } = detectModel();
-    const calcResult = await window.AIWaterMeter.calc(responseText, promptText, modelId);
-    const { session } = await window.AIWaterMeter.addTotals(SITE, calcResult);
-    const card = await window.AIWaterMeter.createCard({
-      calcResult,
-      session,
-      modelDetected: detected,
-    });
+      const promptText = getLastUserPromptBefore(el);
+      const { modelId, detected } = detectModel();
+      const { contentType, artifactEl } = window.AIWaterMeter.detectContentType(turn, CONTENT_DETECTORS);
+      const responseText = contentType === "artifact" && artifactEl ? `${rawText}\n${artifactEl.innerText || ""}` : rawText;
 
-    turn.insertAdjacentElement("afterend", card);
+      const calcResult = await window.AIWaterMeter.calc(responseText, promptText, modelId, { contentType });
+      const { session } = await window.AIWaterMeter.addTotals(SITE, calcResult);
+      const card = await window.AIWaterMeter.createCard({
+        calcResult,
+        session,
+        modelDetected: detected,
+      });
+
+      turn.insertAdjacentElement("afterend", card);
+    } catch (err) {
+      if (String(err?.message || err).includes("Extension context invalidated")) return;
+      console.error("[AI Water Meter]", err);
+    }
   }
 
   function scheduleCheck(el) {

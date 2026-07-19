@@ -1,6 +1,7 @@
 (function () {
   const SITE = "chatgpt";
   const DEFAULT_MODEL = "gpt-5";
+  const DEFAULT_IMAGE_MODEL = "gpt-image-1-5";
 
   // BEST-EFFORT model detection: ChatGPT's model-switcher button usually
   // shows the active model's short label somewhere near the top of the
@@ -30,6 +31,18 @@
     return { modelId: DEFAULT_MODEL, detected: false };
   }
 
+  // BEST-EFFORT content-type detection: none of these selectors have been
+  // checked against a live page. ChatGPT-generated images typically render
+  // as an <img> with descriptive alt text inside the assistant turn; Canvas
+  // opens a distinct side-panel container; Deep Research responses show a
+  // sources/steps panel. If any of these never fire, inspect a real example
+  // of that feature in devtools and correct the selector here.
+  const CONTENT_DETECTORS = {
+    imageSelector: 'img[alt]:not([alt=""])',
+    artifactSelector: '[data-testid*="canvas" i], #canvas-panel, [id*="canvas" i]',
+    researchSelector: '[data-testid*="research" i], [class*="deep-research" i]',
+  };
+
   const processed = new WeakSet();
   const debounceTimers = new WeakMap();
 
@@ -49,24 +62,47 @@
 
   async function handleFinishedMessage(el) {
     if (processed.has(el)) return;
+    // If the extension was reloaded/updated in chrome://extensions since
+    // this page loaded, this content script instance is orphaned and any
+    // chrome.* call below throws "Extension context invalidated" — bail
+    // quietly rather than spamming the console (a page refresh fixes it).
+    if (!chrome.runtime?.id) return;
     processed.add(el);
 
-    const responseText = el.innerText || "";
-    if (!responseText.trim()) return;
+    try {
+      const rawText = el.innerText || "";
+      const promptText = getLastUserPromptBefore(el);
+      const { modelId, detected } = detectModel();
+      const { contentType, artifactEl } = window.AIWaterMeter.detectContentType(el, CONTENT_DETECTORS);
 
-    const promptText = getLastUserPromptBefore(el);
-    const { modelId, detected } = detectModel();
-    const calcResult = await window.AIWaterMeter.calc(responseText, promptText, modelId);
-    const { session } = await window.AIWaterMeter.addTotals(SITE, calcResult);
-    const card = await window.AIWaterMeter.createCard({
-      calcResult,
-      session,
-      modelDetected: detected,
-    });
+      let calcResult;
+      if (contentType === "image") {
+        const unitCount = el.querySelectorAll(CONTENT_DETECTORS.imageSelector).length || 1;
+        calcResult = await window.AIWaterMeter.calc("", promptText, modelId, {
+          contentType,
+          mediaModelId: DEFAULT_IMAGE_MODEL,
+          unitCount,
+        });
+      } else {
+        const responseText = contentType === "artifact" && artifactEl ? `${rawText}\n${artifactEl.innerText || ""}` : rawText;
+        if (!responseText.trim()) return;
+        calcResult = await window.AIWaterMeter.calc(responseText, promptText, modelId, { contentType });
+      }
 
-    // Insert after the assistant turn's outer article container if possible.
-    const container = el.closest("article") || el;
-    container.insertAdjacentElement("afterend", card);
+      const { session } = await window.AIWaterMeter.addTotals(SITE, calcResult);
+      const card = await window.AIWaterMeter.createCard({
+        calcResult,
+        session,
+        modelDetected: detected,
+      });
+
+      // Insert after the assistant turn's outer article container if possible.
+      const container = el.closest("article") || el;
+      container.insertAdjacentElement("afterend", card);
+    } catch (err) {
+      if (String(err?.message || err).includes("Extension context invalidated")) return;
+      console.error("[AI Water Meter]", err);
+    }
   }
 
   function scheduleCheck(el) {

@@ -97,10 +97,12 @@
     return Math.max(1, Math.round(trimmed.length / 4));
   }
 
-  // contentType: "text" (default) | "image" | "video" | "research"
+  // contentType: "text" (default) | "artifact" | "image" | "video" | "research"
   // options.mediaModelId + options.unitCount are used for image/video (1
-  // image, or N seconds of video). options.researchMode is used for text
-  // responses detected as a Deep-Research-style multi-step answer.
+  // image, or N seconds of video). "research" applies RESEARCH_MODE's
+  // multiplier to a normal text response. "artifact" is just a label — the
+  // adapter is expected to have already concatenated chat + canvas/artifact
+  // panel text into responseText before calling calc().
   async function calc(responseText, promptText, modelId, options = {}) {
     await configReady;
     const contentType = options.contentType || "text";
@@ -336,10 +338,47 @@
     "vendor-blog": "vendor blog figure",
   };
 
+  const SUBTITLE_BY_CONTENT_TYPE = {
+    text: "Water used in this response",
+    artifact: "Water used in this response (chat + canvas/artifact combined)",
+    image: "Water used to generate this image",
+    video: "Water used to generate this video",
+    research: "Water used for this research response",
+  };
+
+  const CONTENT_TYPE_TAG_LABEL = {
+    artifact: "canvas/artifact",
+    image: "image",
+    video: "video",
+    research: "research",
+  };
+
+  function buildTooltipText(calcResult, mode) {
+    const methodologyLabel = METHODOLOGY_LABELS[calcResult.methodologyTag] || calcResult.methodologyTag;
+
+    if (calcResult.contentType === "image" || calcResult.contentType === "video") {
+      const unitLabel = calcResult.unitCount > 1 ? `${calcResult.unitCount} ${calcResult.unit}s` : `1 ${calcResult.unit}`;
+      const equivSource =
+        calcResult.tokenEquivalentSource === "vendor-tokenized"
+          ? "the provider's own published output-token count for this unit"
+          : "imputed by dividing this unit's real price by a comparable text model's per-token rate (no vendor token count is published for this media)";
+      return `${calcResult.modelDisplayName}: priced for ${unitLabel} at this vendor's real rate. Water/energy has no direct data for image/video generation, so it's estimated via a token-equivalent (${equivSource}) scaled by ${calcResult.referenceModelDisplayName}'s ${methodologyLabel} rate. ${mode === "accurate" ? "Accurate" : "Playful"} mode is applied on top of that, same as text responses.`;
+    }
+
+    if (calcResult.contentType === "research") {
+      return `Research mode detected: this looks like a multi-step research/deep-search response. Hidden tool calls (web searches, page reads) aren't visible on the page, so output is scaled x${calcResult.researchMultiplier} as a rough proxy, based on a real published cost breakdown for one provider's Deep Research feature, applied uniformly since per-provider data doesn't exist. Not a measurement. ${mode === "accurate" ? "Accurate" : "Playful"} water basis applied on top.`;
+    }
+
+    return mode === "accurate"
+      ? `Accurate mode: uses ${calcResult.modelDisplayName}'s best-sourced estimate (${methodologyLabel}). No AI provider publishes real per-query figures for every model — some numbers here are derived, not directly measured.`
+      : `Playful mode: uses a flat, widely-cited pre-2025 public estimate (~45 mL per 1,000 output tokens) for every model, not ${calcResult.modelDisplayName}-specific data. Switch to Accurate mode in the popup for this model's best sourced estimate.`;
+  }
+
   // ---- card builder -------------------------------------------------------
   async function createCard({ calcResult, session, modelDetected }) {
     const mode = await getWaterMode();
     const waterMl = displayWaterMl(calcResult, mode);
+    const contentType = calcResult.contentType || "text";
 
     const card = document.createElement("div");
     card.className = "awm-card";
@@ -348,11 +387,12 @@
     const targetMl = kind === "bucket" ? BUCKET_ML : kind === "drum" ? DRUM_ML : GLASS_ML;
     const targetPercent = Math.min(100, (waterMl / targetMl) * 100);
 
-    const methodologyLabel = METHODOLOGY_LABELS[calcResult.methodologyTag] || calcResult.methodologyTag;
-    const tooltipText =
-      mode === "accurate"
-        ? `Accurate mode: uses ${calcResult.modelDisplayName}'s best-sourced estimate (${methodologyLabel}). No AI provider publishes real per-query figures for every model — some numbers here are derived, not directly measured.`
-        : `Playful mode: uses a flat, widely-cited pre-2025 public estimate (~45 mL per 1,000 output tokens) for every model, not ${calcResult.modelDisplayName}-specific data. Switch to Accurate mode in the popup for this model's best sourced estimate.`;
+    const tooltipText = buildTooltipText(calcResult, mode);
+    const subtitle = SUBTITLE_BY_CONTENT_TYPE[contentType] || SUBTITLE_BY_CONTENT_TYPE.text;
+    const contentTypeTag = CONTENT_TYPE_TAG_LABEL[contentType]
+      ? `<span class="awm-model-badge awm-content-type-badge">${CONTENT_TYPE_TAG_LABEL[contentType]}${contentType === "research" ? ` x${calcResult.researchMultiplier}` : ""}</span>`
+      : "";
+    const outTokLabel = contentType === "image" || contentType === "video" ? "out-equiv" : "out";
 
     card.innerHTML = `
       <div class="awm-icon-wrap">${renderIcon(kind, 0)}</div>
@@ -371,13 +411,14 @@
         </div>
         <div class="awm-model-row">
           <span class="awm-model-name">${calcResult.modelDisplayName}</span>
+          ${contentTypeTag}
           ${modelDetected ? "" : '<span class="awm-model-badge" title="Model not detected on this page — using this site\'s default estimate.">estimated model</span>'}
         </div>
-        <div class="awm-sub">Water used in this response · ${mode} estimate</div>
+        <div class="awm-sub">${subtitle} · ${mode} estimate</div>
         <div class="awm-mainstat">${fmtMl(waterMl)}</div>
         <div class="awm-bar"><div class="awm-bar-fill" style="width:0%"></div></div>
         <div class="awm-row">
-          <span class="awm-chip">${calcResult.inTokens} in · ${calcResult.outTokens} out tok</span>
+          <span class="awm-chip">${calcResult.inTokens} in · ${calcResult.outTokens} ${outTokLabel} tok</span>
           <span class="awm-chip awm-chip-muted">${fmtWh(calcResult.energyWh)}</span>
         </div>
         <div class="awm-row">
@@ -390,6 +431,7 @@
     `;
 
     card.querySelector(".awm-arrow-btn").addEventListener("click", () => {
+      if (!chrome.runtime?.id) return; // extension reloaded since this card was created — button is dead until page refresh
       chrome.runtime.sendMessage({ type: "OPEN_ANALYSIS" });
     });
 
@@ -423,6 +465,33 @@
     return { modelId: defaultModelId, detected: false };
   }
 
+  // ---- content type detection helper -------------------------------------
+  // Shared by every site adapter. Given the assistant turn element, checks
+  // (in order) for a canvas/artifact panel, an image, a video, and a
+  // research-mode indicator, using the selectors passed in `detectors`
+  // (each optional — a site that has no such feature just omits that key).
+  // Returns { contentType, mediaEl } — mediaEl is the detected <img>/<video>
+  // element when contentType is "image"/"video", else null.
+  function detectContentType(turnEl, detectors) {
+    if (detectors.artifactSelector) {
+      const artifactEl = document.querySelector(detectors.artifactSelector);
+      if (artifactEl) return { contentType: "artifact", mediaEl: null, artifactEl };
+    }
+    if (detectors.videoSelector) {
+      const videoEl = turnEl.querySelector(detectors.videoSelector);
+      if (videoEl) return { contentType: "video", mediaEl: videoEl, artifactEl: null };
+    }
+    if (detectors.imageSelector) {
+      const imgEl = turnEl.querySelector(detectors.imageSelector);
+      if (imgEl) return { contentType: "image", mediaEl: imgEl, artifactEl: null };
+    }
+    if (detectors.researchSelector) {
+      const researchEl = turnEl.querySelector(detectors.researchSelector) || document.querySelector(detectors.researchSelector);
+      if (researchEl) return { contentType: "research", mediaEl: null, artifactEl: null };
+    }
+    return { contentType: "text", mediaEl: null, artifactEl: null };
+  }
+
   window.AIWaterMeter = {
     calc,
     getTotals,
@@ -432,6 +501,7 @@
     getWaterMode,
     setWaterMode,
     detectModelFromText,
+    detectContentType,
     configReady,
   };
 })();

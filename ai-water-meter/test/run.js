@@ -9,7 +9,31 @@ const { chromium } = require("playwright");
 const { build, TMP_EXT } = require("./build-test-extension");
 const { start, PORT } = require("./server");
 
-const SITES = ["chatgpt", "claude", "gemini", "deepseek"];
+// One entry per fixture. expectedContentType drives the content-type-tag
+// assertion; "text" fixtures assert NO content-type tag is shown.
+const TEST_CASES = [
+  { site: "chatgpt", fixture: "chatgpt.html", expectedContentType: "text" },
+  { site: "chatgpt", fixture: "chatgpt-image.html", expectedContentType: "image" },
+  { site: "chatgpt", fixture: "chatgpt-canvas.html", expectedContentType: "artifact" },
+  { site: "chatgpt", fixture: "chatgpt-research.html", expectedContentType: "research" },
+  { site: "claude", fixture: "claude.html", expectedContentType: "text" },
+  { site: "claude", fixture: "claude-artifact.html", expectedContentType: "artifact" },
+  { site: "claude", fixture: "claude-research.html", expectedContentType: "research" },
+  { site: "gemini", fixture: "gemini.html", expectedContentType: "text" },
+  { site: "gemini", fixture: "gemini-image.html", expectedContentType: "image" },
+  { site: "gemini", fixture: "gemini-video.html", expectedContentType: "video" },
+  { site: "gemini", fixture: "gemini-canvas.html", expectedContentType: "artifact" },
+  { site: "gemini", fixture: "gemini-research.html", expectedContentType: "research" },
+  { site: "deepseek", fixture: "deepseek.html", expectedContentType: "text" },
+];
+
+const CONTENT_TYPE_TAG_TEXT = {
+  artifact: "canvas/artifact",
+  image: "image",
+  video: "video",
+  research: "research",
+};
+
 const USER_DATA_DIR = path.join(__dirname, ".pw-profile");
 
 let failures = 0;
@@ -42,8 +66,8 @@ async function main() {
   const extensionId = worker.url().split("/")[2];
   console.log(`Extension loaded, id=${extensionId}`);
 
-  for (const site of SITES) {
-    console.log(`\n[${site}]`);
+  for (const { site, fixture, expectedContentType } of TEST_CASES) {
+    console.log(`\n[${fixture}] (expect contentType=${expectedContentType})`);
     const page = await context.newPage();
     const consoleErrors = [];
     page.on("pageerror", (e) => consoleErrors.push(String(e)));
@@ -54,7 +78,7 @@ async function main() {
       consoleErrors.push(msg.text());
     });
 
-    await page.goto(`http://127.0.0.1:${PORT}/${site}.html`);
+    await page.goto(`http://127.0.0.1:${PORT}/${fixture}`);
     try {
       await page.waitForSelector(".awm-card", { timeout: 8000 });
     } catch {
@@ -66,12 +90,13 @@ async function main() {
 
     const mainstat = await page.locator(".awm-mainstat").innerText();
     check("mainstat non-empty", mainstat.trim().length > 0, mainstat);
-    check("mainstat not zero", !/^0(\.0+)?\s*mL$/.test(mainstat.trim()), mainstat);
+    check("mainstat not zero", !/^0(\.0+)?\s*(mL|L)$/.test(mainstat.trim()), mainstat);
 
     const tokenRow = await page.locator(".awm-row").first().innerText();
-    const tokenMatch = tokenRow.match(/(\d+)\s*in.*?(\d+)\s*out/);
+    const tokenMatch = tokenRow.match(/(\d+)\s*in.*?(\d+)\s*(out|out-equiv)/);
     // deepseek.js deliberately passes "" as prompt text (can't reliably scope
-    // it generically), so inTokens=0 there is expected, not a bug.
+    // it generically) and image/video responses have no "input text" of their
+    // own beyond the prompt, so a 0 in-token count is expected there, not a bug.
     const minInTokens = site === "deepseek" ? 0 : 1;
     check(
       "token row shows sane in/out tokens",
@@ -83,8 +108,24 @@ async function main() {
     check("model row shows a model name", modelRow.trim().length > 0, modelRow);
     console.log(`  INFO: detected model = "${modelRow}"`);
 
-    const hasBadge = await page.locator(".awm-model-badge").count();
-    check("model picker in fixture was detected (no fallback badge)", hasBadge === 0, "fell back to per-site default");
+    // The "estimated model" fallback badge is plain .awm-model-badge; the
+    // content-type tag reuses that class PLUS .awm-content-type-badge, so
+    // excluding it here isolates the model-detection-fallback signal.
+    const hasFallbackBadge = await page.locator(".awm-model-badge:not(.awm-content-type-badge)").count();
+    check("model picker in fixture was detected (no fallback badge)", hasFallbackBadge === 0, "fell back to per-site default");
+
+    const contentTypeBadge = page.locator(".awm-content-type-badge");
+    const contentTypeBadgeCount = await contentTypeBadge.count();
+    if (expectedContentType === "text") {
+      check("no content-type tag shown for plain text response", contentTypeBadgeCount === 0, `found ${contentTypeBadgeCount}`);
+    } else {
+      const badgeText = contentTypeBadgeCount > 0 ? await contentTypeBadge.innerText() : "";
+      check(
+        `content-type tag shows "${CONTENT_TYPE_TAG_TEXT[expectedContentType]}"`,
+        badgeText.toLowerCase().includes(CONTENT_TYPE_TAG_TEXT[expectedContentType]),
+        badgeText
+      );
+    }
 
     check("no console/page errors", consoleErrors.length === 0, consoleErrors.join(" | "));
 
@@ -101,11 +142,11 @@ async function main() {
   await popupPage.goto(`chrome-extension://${extensionId}/popup/popup.html`);
   await popupPage.waitForTimeout(500);
 
-  const totalWater = await popupPage.locator("#totalWater").innerText();
-  check("popup total water renders", totalWater.trim().length > 0 && totalWater.trim() !== "—", totalWater);
+  const totalWaterNum = await popupPage.locator("#totalWaterNum").innerText();
+  check("popup total water renders", totalWaterNum.trim().length > 0 && totalWaterNum.trim() !== "—", totalWaterNum);
 
-  const siteRows = await popupPage.locator(".awm-popup-site-row").count();
-  check("popup site breakdown has rows", siteRows >= SITES.length, `found ${siteRows}`);
+  const siteRows = await popupPage.locator("#siteBreakdown .awm-popup-site-row").count();
+  check("popup site breakdown has rows", siteRows >= 4, `found ${siteRows}`);
 
   await popupPage.locator('.awm-popup-tab[data-tab="model"]').click();
   await popupPage.waitForTimeout(200);
@@ -113,6 +154,9 @@ async function main() {
   check("model tab switches breakdown view", modelVisible);
   const modelRows = await popupPage.locator("#modelBreakdown .awm-popup-site-row").count();
   check("popup model breakdown has rows", modelRows > 0, `found ${modelRows}`);
+  // Expect entries for both text models AND the new mediaModels (image/video)
+  // and research-tagged responses, since they all share the same storage path.
+  console.log(`  INFO: ${modelRows} distinct model/media entries in popup breakdown`);
 
   await popupPage.locator('.awm-popup-mode-btn[data-mode="accurate"]').click();
   await popupPage.waitForTimeout(200);

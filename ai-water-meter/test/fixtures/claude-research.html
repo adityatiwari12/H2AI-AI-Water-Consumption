@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8" /><title>Claude research fixture</title></head>
+<body>
+  <button data-testid="model-selector-dropdown">Claude Opus 4.8</button>
+  <div data-testid="research-progress">Searched the web for 8 sources</div>
+  <main>
+    <div data-testid="conversation-turn">
+      <div data-testid="user-message">What are the latest developments in fusion energy research?</div>
+    </div>
+    <div data-testid="conversation-turn" data-is-streaming="false">
+      <div class="font-claude-message">
+        Fusion energy research has seen major milestones recently, including several
+        labs achieving net energy gain in controlled experiments. Private companies
+        have raised substantial funding to build demonstration reactors, targeting
+        grid-connected power within the next decade. Tokamak and inertial confinement
+        approaches remain the two dominant technical paths, each with distinct
+        engineering tradeoffs around magnetic field strength, plasma stability, and
+        materials that can withstand sustained neutron bombardment without excessive
+        degradation over a commercial reactor's operating lifetime.
+      </div>
+    </div>
+  </main>
+</body>
+</html>

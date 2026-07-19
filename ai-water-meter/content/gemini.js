@@ -1,6 +1,8 @@
 (function () {
   const SITE = "gemini";
   const DEFAULT_MODEL = "gemini-3-flash";
+  const DEFAULT_IMAGE_MODEL = "imagen-4-standard";
+  const DEFAULT_VIDEO_MODEL = "veo-3-1-fast";
 
   // Gemini's response text lives in a "message-content" style container.
   // Selector guesses first, generic fallback second. Update if the UI shifts.
@@ -34,6 +36,19 @@
     return { modelId: DEFAULT_MODEL, detected: false };
   }
 
+  // BEST-EFFORT content-type detection: none of these selectors have been
+  // checked against a live page — Gemini is the highest-risk site for this
+  // (see model-detection comment above). Gemini supports image gen (Imagen),
+  // video gen (Veo), a Canvas side-panel, and Deep Research, so all four are
+  // attempted. If a feature never fires, inspect a real example in devtools
+  // and correct the selector.
+  const CONTENT_DETECTORS = {
+    artifactSelector: '[class*="canvas" i], [data-test-id*="immersive" i]',
+    videoSelector: "video",
+    imageSelector: 'img[alt*="Generated" i], generated-image img, [class*="generated-image" i] img',
+    researchSelector: '[data-test-id*="research" i], [class*="deep-research" i]',
+  };
+
   const processed = new WeakSet();
   const debounceTimers = new WeakMap();
 
@@ -55,22 +70,52 @@
 
   async function handleFinishedMessage(el) {
     if (processed.has(el)) return;
+    // If the extension was reloaded/updated in chrome://extensions since
+    // this page loaded, this content script instance is orphaned and any
+    // chrome.* call below throws "Extension context invalidated" — bail
+    // quietly rather than spamming the console (a page refresh fixes it).
+    if (!chrome.runtime?.id) return;
     processed.add(el);
 
-    const responseText = el.innerText || "";
-    if (!responseText.trim() || responseText.trim().length < 3) return;
+    try {
+      const rawText = el.innerText || "";
+      const promptText = getLastUserPromptBefore(el);
+      const { modelId, detected } = detectModel();
+      const { contentType, mediaEl, artifactEl } = window.AIWaterMeter.detectContentType(el, CONTENT_DETECTORS);
 
-    const promptText = getLastUserPromptBefore(el);
-    const { modelId, detected } = detectModel();
-    const calcResult = await window.AIWaterMeter.calc(responseText, promptText, modelId);
-    const { session } = await window.AIWaterMeter.addTotals(SITE, calcResult);
-    const card = await window.AIWaterMeter.createCard({
-      calcResult,
-      session,
-      modelDetected: detected,
-    });
+      let calcResult;
+      if (contentType === "video") {
+        const durationSec = mediaEl && isFinite(mediaEl.duration) && mediaEl.duration > 0 ? mediaEl.duration : 8;
+        calcResult = await window.AIWaterMeter.calc("", promptText, modelId, {
+          contentType,
+          mediaModelId: DEFAULT_VIDEO_MODEL,
+          unitCount: Math.max(1, Math.ceil(durationSec)),
+        });
+      } else if (contentType === "image") {
+        const unitCount = el.querySelectorAll(CONTENT_DETECTORS.imageSelector).length || 1;
+        calcResult = await window.AIWaterMeter.calc("", promptText, modelId, {
+          contentType,
+          mediaModelId: DEFAULT_IMAGE_MODEL,
+          unitCount,
+        });
+      } else {
+        const responseText = contentType === "artifact" && artifactEl ? `${rawText}\n${artifactEl.innerText || ""}` : rawText;
+        if (!responseText.trim() || responseText.trim().length < 3) return;
+        calcResult = await window.AIWaterMeter.calc(responseText, promptText, modelId, { contentType });
+      }
 
-    el.insertAdjacentElement("afterend", card);
+      const { session } = await window.AIWaterMeter.addTotals(SITE, calcResult);
+      const card = await window.AIWaterMeter.createCard({
+        calcResult,
+        session,
+        modelDetected: detected,
+      });
+
+      el.insertAdjacentElement("afterend", card);
+    } catch (err) {
+      if (String(err?.message || err).includes("Extension context invalidated")) return;
+      console.error("[AI Water Meter]", err);
+    }
   }
 
   function scheduleCheck(el) {

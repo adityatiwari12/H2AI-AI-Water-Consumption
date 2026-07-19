@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8" /><title>Claude artifact fixture</title></head>
+<body>
+  <button data-testid="model-selector-dropdown">Claude Sonnet 5</button>
+  <main>
+    <div data-testid="conversation-turn">
+      <div data-testid="user-message">Write a Python script that sorts a list of dictionaries by a key.</div>
+    </div>
+    <div data-testid="conversation-turn" data-is-streaming="false">
+      <div class="font-claude-message">I've created that script for you in the artifact panel.</div>
+      <div data-testid="artifact">
+        def sort_by_key(items, key):
+            return sorted(items, key=lambda d: d.get(key))
+
+        # Example usage
+        people = [{"name": "Bob", "age": 34}, {"name": "Ann", "age": 28}]
+        sorted_people = sort_by_key(people, "age")
+        print(sorted_people)
+
+        # This handles missing keys gracefully by returning None, which sorts
+        # before any real value in Python's default ordering.
+      </div>
+    </div>
+  </main>
+</body>
+</html>

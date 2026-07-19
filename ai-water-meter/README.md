@@ -6,6 +6,9 @@ DeepSeek response, with an animated glass → bucket → drum icon estimating
 water used and cost, plus a running session/lifetime total (popup). The
 card also breaks out input/output tokens, input/output cost, and energy,
 and detects which model produced the response where the page's DOM allows.
+Beyond plain text, it also estimates image generation, video generation,
+Canvas/Artifact responses, and Deep-Research-style answers — see
+"Beyond text: image, video, canvas, and research" below.
 
 ## ⚠️ Important: these numbers are estimates, not real data
 
@@ -41,6 +44,45 @@ output tokens depending on model and methodology, there's a global toggle
 Lifetime/session totals in storage always accumulate the **accurate**
 figure regardless of the display toggle, so flipping the toggle never makes
 past totals jump.
+
+### Beyond text: image, video, canvas, and research
+
+Each response is classified into one of five content types before `calc()`
+runs — `content/core.js`'s `detectContentType()`, called with a per-site
+`CONTENT_DETECTORS` selector set. A small tag appears next to the model name
+for anything other than plain text.
+
+- **image / video** — no vendor publishes water/energy data for media
+  generation. Each entry in `models.config.json`'s new `mediaModels` section
+  converts its unit (1 image, 1 second of video) into an output-token
+  equivalent — a *real* one where the vendor publishes it (OpenAI tokenizes
+  `gpt-image-1.5` output: 272/1056/4160 tokens for low/medium/high quality),
+  otherwise imputed by dividing the real per-unit price by a reference text
+  model's per-token rate (Google's Imagen/Veo, billed flat per unit with no
+  published tokenization). Water/energy is then borrowed from that reference
+  model's rate. Cost uses the vendor's real price directly, not the token
+  conversion. Supported today: ChatGPT (image only), Gemini (image + video).
+  Claude and DeepSeek have no native in-chat image/video generation to
+  detect.
+- **canvas / artifact** (ChatGPT Canvas, Claude Artifacts, Gemini Canvas) —
+  the side-panel content is concatenated with the inline chat reply before
+  tokenizing, so the total reflects everything actually generated, not just
+  the short "I've created X" chat acknowledgment. DeepSeek has no such
+  feature.
+- **research** (ChatGPT/Gemini Deep Research, Claude's web-search/research
+  mode) — hidden tool calls (web searches, page fetches) never appear in the
+  DOM, so only the final visible answer can be tokenized directly, which
+  would badly undercount a real research task. `models.config.json`'s
+  `researchMode.defaultMultiplier` (currently 4x) scales the visible
+  output-token count before cost/water/energy math runs, as a rough proxy.
+  This number is grounded in one real published cost breakdown for Gemini
+  Deep Research (see `_meta.waterEnergyMethodology.researchMode` for the
+  derivation) — not a measurement, and extrapolated to every provider for
+  lack of anything more specific. DeepSeek has no such feature.
+
+All of this is exactly as best-effort as model detection (below) — the
+selectors were written by reasoning about typical DOM patterns for each
+feature, not by inspecting a live page.
 
 ## Install (unpacked, for development)
 
@@ -101,16 +143,26 @@ sites. When that happens:
 1. Open the site, open a chat, right-click a finished AI response → **Inspect**
 2. Find a stable-looking selector (an attribute like
    `data-message-author-role="assistant"`, or a consistent class name)
-3. Update `ASSISTANT_SELECTOR` (message detection) or
-   `MODEL_PICKER_SELECTORS`/`MODEL_PATTERNS` (model detection) at the top of
-   that site's file in `content/`
+3. Update `ASSISTANT_SELECTOR` (message detection), `MODEL_PICKER_SELECTORS`/
+   `MODEL_PATTERNS` (model detection), or `CONTENT_DETECTORS` (image/video/
+   canvas/research detection) at the top of that site's file in `content/`
 
 DeepSeek and Gemini use the most generic/fragile selectors right now since
-their class names are less stable — expect to touch those first. Model
-detection was written without live browser access (see above) so treat it
-as unverified everywhere until manually checked.
+their class names are less stable — expect to touch those first. Model and
+content-type detection were both written without live browser access (see
+above) so treat them as unverified everywhere until manually checked.
 
-## Ideas for v3
+### Known limitation: "Extension context invalidated"
+
+If you reload the extension in `chrome://extensions` while a supported site
+is already open in a tab, that tab's already-running content script becomes
+orphaned — any `chrome.*` call it makes throws `Extension context
+invalidated`. Every adapter now catches this specific error and bails
+quietly instead of throwing, but the card still won't appear on that tab
+until you refresh the page. This is normal Chrome MV3 behavior during
+development, not a bug in the calc/detection logic.
+
+## Ideas for v4
 
 - Settings page to let users edit `models.config.json` from the popup
   instead of hand-editing the file

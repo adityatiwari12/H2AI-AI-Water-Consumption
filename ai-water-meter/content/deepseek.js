@@ -50,23 +50,33 @@
 
   async function handleFinishedMessage(el) {
     if (processed.has(el)) return;
+    // If the extension was reloaded/updated in chrome://extensions since
+    // this page loaded, this content script instance is orphaned and any
+    // chrome.* call below throws "Extension context invalidated" — bail
+    // quietly rather than spamming the console (a page refresh fixes it).
+    if (!chrome.runtime?.id) return;
     processed.add(el);
 
-    const responseText = el.innerText || "";
-    if (!responseText.trim() || responseText.trim().length < 3) return;
+    try {
+      const responseText = el.innerText || "";
+      if (!responseText.trim() || responseText.trim().length < 3) return;
 
-    // DeepSeek prompt text is harder to reliably scope generically, so we
-    // pass an empty prompt (input-token cost contribution will read as 0).
-    const { modelId, detected } = detectModel();
-    const calcResult = await window.AIWaterMeter.calc(responseText, "", modelId);
-    const { session } = await window.AIWaterMeter.addTotals(SITE, calcResult);
-    const card = await window.AIWaterMeter.createCard({
-      calcResult,
-      session,
-      modelDetected: detected,
-    });
+      // DeepSeek prompt text is harder to reliably scope generically, so we
+      // pass an empty prompt (input-token cost contribution will read as 0).
+      const { modelId, detected } = detectModel();
+      const calcResult = await window.AIWaterMeter.calc(responseText, "", modelId);
+      const { session } = await window.AIWaterMeter.addTotals(SITE, calcResult);
+      const card = await window.AIWaterMeter.createCard({
+        calcResult,
+        session,
+        modelDetected: detected,
+      });
 
-    el.insertAdjacentElement("afterend", card);
+      el.insertAdjacentElement("afterend", card);
+    } catch (err) {
+      if (String(err?.message || err).includes("Extension context invalidated")) return;
+      console.error("[AI Water Meter]", err);
+    }
   }
 
   function scheduleCheck(el) {

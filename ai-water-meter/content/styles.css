@@ -79,6 +79,15 @@
   cursor: help;
 }
 
+.awm-content-type-badge {
+  color: #8fb4de;
+  background: #16232f;
+  border: 1px solid #234a6b;
+  cursor: default;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
 .awm-sub {
   font-size: 11.5px;
   color: #8a8f98;
