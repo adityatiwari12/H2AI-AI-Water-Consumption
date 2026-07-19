@@ -465,18 +465,25 @@
     return { modelId: defaultModelId, detected: false };
   }
 
+  // A document-wide fallback match only counts if it actually has meaningful
+  // content — otherwise a stray always-present element (a hidden feature-flag
+  // container, an empty template slot) whose id/class loosely matches one of
+  // our generic selectors (e.g. "[id*='canvas' i]") would hijack every single
+  // response on the page into the wrong content type.
+  const MIN_SIDE_PANEL_TEXT_LENGTH = 15;
+
   // ---- content type detection helper -------------------------------------
   // Shared by every site adapter. Given the assistant turn element, checks
-  // (in order) for a canvas/artifact panel, an image, a video, and a
+  // (in order) for an image, a video, a canvas/artifact panel, and a
   // research-mode indicator, using the selectors passed in `detectors`
   // (each optional — a site that has no such feature just omits that key).
+  // Image/video are checked first since they're scoped to the turn and thus
+  // the least likely of the four to false-positive; artifact/research often
+  // need a document-wide fallback (the side panel usually isn't a descendant
+  // of the turn element) which is inherently riskier.
   // Returns { contentType, mediaEl } — mediaEl is the detected <img>/<video>
   // element when contentType is "image"/"video", else null.
   function detectContentType(turnEl, detectors) {
-    if (detectors.artifactSelector) {
-      const artifactEl = document.querySelector(detectors.artifactSelector);
-      if (artifactEl) return { contentType: "artifact", mediaEl: null, artifactEl };
-    }
     if (detectors.videoSelector) {
       const videoEl = turnEl.querySelector(detectors.videoSelector);
       if (videoEl) return { contentType: "video", mediaEl: videoEl, artifactEl: null };
@@ -485,9 +492,17 @@
       const imgEl = turnEl.querySelector(detectors.imageSelector);
       if (imgEl) return { contentType: "image", mediaEl: imgEl, artifactEl: null };
     }
+    if (detectors.artifactSelector) {
+      const artifactEl = turnEl.querySelector(detectors.artifactSelector) || document.querySelector(detectors.artifactSelector);
+      if (artifactEl && (artifactEl.innerText || "").trim().length >= MIN_SIDE_PANEL_TEXT_LENGTH) {
+        return { contentType: "artifact", mediaEl: null, artifactEl };
+      }
+    }
     if (detectors.researchSelector) {
       const researchEl = turnEl.querySelector(detectors.researchSelector) || document.querySelector(detectors.researchSelector);
-      if (researchEl) return { contentType: "research", mediaEl: null, artifactEl: null };
+      if (researchEl && (researchEl.innerText || "").trim().length >= MIN_SIDE_PANEL_TEXT_LENGTH) {
+        return { contentType: "research", mediaEl: null, artifactEl: null };
+      }
     }
     return { contentType: "text", mediaEl: null, artifactEl: null };
   }

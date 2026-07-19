@@ -38,7 +38,10 @@
   // sources/steps panel. If any of these never fire, inspect a real example
   // of that feature in devtools and correct the selector here.
   const CONTENT_DETECTORS = {
-    imageSelector: 'img[alt]:not([alt=""])',
+    // Generated images are served from OpenAI's own CDN domain regardless of
+    // whatever alt text/DOM wrapper the current UI build uses — a more
+    // stable signal than alt text alone, which this also still checks.
+    imageSelector: 'img[alt]:not([alt=""]), img[src*="oaiusercontent" i]',
     artifactSelector: '[data-testid*="canvas" i], #canvas-panel, [id*="canvas" i]',
     researchSelector: '[data-testid*="research" i], [class*="deep-research" i]',
   };

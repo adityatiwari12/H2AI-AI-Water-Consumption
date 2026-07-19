@@ -16,6 +16,7 @@ const TEST_CASES = [
   { site: "chatgpt", fixture: "chatgpt-image.html", expectedContentType: "image" },
   { site: "chatgpt", fixture: "chatgpt-canvas.html", expectedContentType: "artifact" },
   { site: "chatgpt", fixture: "chatgpt-research.html", expectedContentType: "research" },
+  { site: "chatgpt", fixture: "chatgpt-image-decoy.html", expectedContentType: "image" },
   { site: "claude", fixture: "claude.html", expectedContentType: "text" },
   { site: "claude", fixture: "claude-artifact.html", expectedContentType: "artifact" },
   { site: "claude", fixture: "claude-research.html", expectedContentType: "research" },

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8" /><title>ChatGPT image + decoy canvas fixture</title></head>
+<body>
+  <!-- Regression fixture for the bug where an unrelated, empty, always-present
+       element matching the loose artifactSelector pattern (e.g. a hidden
+       feature-flag container) hijacked every response — including image
+       generation, which often has little or no surrounding chat text — into
+       misclassifying as "artifact" with an empty responseText, producing no
+       card at all. detectContentType() must not let this decoy win. -->
+  <div id="canvas-feature-flag-container" style="display:none"></div>
+  <button data-testid="model-switcher-dropdown-button">GPT-5.4</button>
+  <main>
+    <article>
+      <div data-message-author-role="user">Generate an image of a red bicycle.</div>
+    </article>
+    <article>
+      <div data-message-author-role="assistant">
+        <img alt="A red bicycle" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBTAA7" />
+      </div>
+    </article>
+  </main>
+</body>
+</html>
