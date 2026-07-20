@@ -29,14 +29,6 @@
     sourceUrl: "https://cloud.google.com/blog/products/infrastructure/measuring-the-environmental-impact-of-ai-inference",
   };
 
-  // Playful mode ignores per-model config and uses this single, flat,
-  // widely-cited pre-2025 public estimate (~45mL per 1000 output tokens) for
-  // every model — see FR6 in the PRD. It exists to keep the glass-fill
-  // animation visually meaningful and to match the "meme" numbers people
-  // expect from the original viral screenshot format, at the cost of losing
-  // per-model differentiation.
-  const PLAYFUL_WATER_ML_PER_OUTPUT_MTOK = 45000;
-
   // Media (image/video) generation has no per-token concept of its own —
   // each mediaModels entry converts its unit (1 image, 1 second of video) to
   // an output-token equivalent and borrows an existing text model's water/
@@ -120,8 +112,7 @@
       const costUsd = costInUsd + costOutUsd;
 
       const energyWh = (outTokens / 1e6) * refModel.energyWhPerOutputMTok;
-      const waterMlAccurate = (outTokens / 1e6) * refModel.waterMlPerOutputMTok;
-      const waterMlPlayful = (outTokens / 1e6) * PLAYFUL_WATER_ML_PER_OUTPUT_MTOK;
+      const waterMl = (outTokens / 1e6) * refModel.waterMlPerOutputMTok;
 
       return {
         modelId: resolvedModelId,
@@ -138,8 +129,7 @@
         costOutUsd,
         costUsd,
         energyWh,
-        waterMlAccurate,
-        waterMlPlayful,
+        waterMl,
         methodologyTag: refModel.methodologyTag,
         sourceUrl: media.sourceUrl,
       };
@@ -157,8 +147,7 @@
     const costUsd = costInUsd + costOutUsd;
 
     const energyWh = (effectiveOutTokens / 1e6) * model.energyWhPerOutputMTok;
-    const waterMlAccurate = (effectiveOutTokens / 1e6) * model.waterMlPerOutputMTok;
-    const waterMlPlayful = (effectiveOutTokens / 1e6) * PLAYFUL_WATER_ML_PER_OUTPUT_MTOK;
+    const waterMl = (effectiveOutTokens / 1e6) * model.waterMlPerOutputMTok;
 
     return {
       modelId: resolvedModelId,
@@ -172,36 +161,13 @@
       costOutUsd,
       costUsd,
       energyWh,
-      waterMlAccurate,
-      waterMlPlayful,
+      waterMl,
       methodologyTag: model.methodologyTag,
       sourceUrl: model.sourceUrl,
     };
   }
 
-  // ---- water display mode (playful / accurate) -------------------------------
-  const WATER_MODE_KEY = "awm_water_mode";
-
-  async function getWaterMode() {
-    const data = await chrome.storage.local.get([WATER_MODE_KEY]);
-    return data[WATER_MODE_KEY] === "accurate" ? "accurate" : "playful";
-  }
-
-  async function setWaterMode(mode) {
-    const value = mode === "accurate" ? "accurate" : "playful";
-    await chrome.storage.local.set({ [WATER_MODE_KEY]: value });
-    return value;
-  }
-
-  function displayWaterMl(calcResult, mode) {
-    return mode === "accurate" ? calcResult.waterMlAccurate : calcResult.waterMlPlayful;
-  }
-
   // ---- persistence ------------------------------------------------------------
-  // Storage always accumulates the *accurate* per-model water figure, not the
-  // mode-dependent display number — otherwise flipping the playful/accurate
-  // toggle would make lifetime totals jump discontinuously. The toggle only
-  // affects what a given card's mainstat/bar shows for its own response.
   function sessionKey(site) {
     return `awm_session_${site}`;
   }
@@ -216,7 +182,7 @@
 
   function addTotal(total, calcResult) {
     return {
-      waterMl: (total.waterMl || 0) + calcResult.waterMlAccurate,
+      waterMl: (total.waterMl || 0) + calcResult.waterMl,
       costUsd: (total.costUsd || 0) + calcResult.costUsd,
       costInUsd: (total.costInUsd || 0) + calcResult.costInUsd,
       costOutUsd: (total.costOutUsd || 0) + calcResult.costOutUsd,
@@ -353,7 +319,7 @@
     research: "research",
   };
 
-  function buildTooltipText(calcResult, mode) {
+  function buildTooltipText(calcResult) {
     const methodologyLabel = METHODOLOGY_LABELS[calcResult.methodologyTag] || calcResult.methodologyTag;
 
     if (calcResult.contentType === "image" || calcResult.contentType === "video") {
@@ -362,22 +328,19 @@
         calcResult.tokenEquivalentSource === "vendor-tokenized"
           ? "the provider's own published output-token count for this unit"
           : "imputed by dividing this unit's real price by a comparable text model's per-token rate (no vendor token count is published for this media)";
-      return `${calcResult.modelDisplayName}: priced for ${unitLabel} at this vendor's real rate. Water/energy has no direct data for image/video generation, so it's estimated via a token-equivalent (${equivSource}) scaled by ${calcResult.referenceModelDisplayName}'s ${methodologyLabel} rate. ${mode === "accurate" ? "Accurate" : "Playful"} mode is applied on top of that, same as text responses.`;
+      return `${calcResult.modelDisplayName}: priced for ${unitLabel} at this vendor's real rate. Water/energy has no direct data for image/video generation, so it's estimated via a token-equivalent (${equivSource}) scaled by ${calcResult.referenceModelDisplayName}'s ${methodologyLabel} rate.`;
     }
 
     if (calcResult.contentType === "research") {
-      return `Research mode detected: this looks like a multi-step research/deep-search response. Hidden tool calls (web searches, page reads) aren't visible on the page, so output is scaled x${calcResult.researchMultiplier} as a rough proxy, based on a real published cost breakdown for one provider's Deep Research feature, applied uniformly since per-provider data doesn't exist. Not a measurement. ${mode === "accurate" ? "Accurate" : "Playful"} water basis applied on top.`;
+      return `Research mode detected: this looks like a multi-step research/deep-search response. Hidden tool calls (web searches, page reads) aren't visible on the page, so output is scaled x${calcResult.researchMultiplier} as a rough proxy, based on a real published cost breakdown for one provider's Deep Research feature, applied uniformly since per-provider data doesn't exist. Not a measurement.`;
     }
 
-    return mode === "accurate"
-      ? `Accurate mode: uses ${calcResult.modelDisplayName}'s best-sourced estimate (${methodologyLabel}). No AI provider publishes real per-query figures for every model — some numbers here are derived, not directly measured.`
-      : `Playful mode: uses a flat, widely-cited pre-2025 public estimate (~45 mL per 1,000 output tokens) for every model, not ${calcResult.modelDisplayName}-specific data. Switch to Accurate mode in the popup for this model's best sourced estimate.`;
+    return `Uses ${calcResult.modelDisplayName}'s best-sourced estimate (${methodologyLabel}). No AI provider publishes real per-query figures for every model — some numbers here are derived, not directly measured.`;
   }
 
   // ---- card builder -------------------------------------------------------
   async function createCard({ calcResult, session, modelDetected }) {
-    const mode = await getWaterMode();
-    const waterMl = displayWaterMl(calcResult, mode);
+    const waterMl = calcResult.waterMl;
     const contentType = calcResult.contentType || "text";
 
     const card = document.createElement("div");
@@ -387,7 +350,7 @@
     const targetMl = kind === "bucket" ? BUCKET_ML : kind === "drum" ? DRUM_ML : GLASS_ML;
     const targetPercent = Math.min(100, (waterMl / targetMl) * 100);
 
-    const tooltipText = buildTooltipText(calcResult, mode);
+    const tooltipText = buildTooltipText(calcResult);
     const subtitle = SUBTITLE_BY_CONTENT_TYPE[contentType] || SUBTITLE_BY_CONTENT_TYPE.text;
     const contentTypeTag = CONTENT_TYPE_TAG_LABEL[contentType]
       ? `<span class="awm-model-badge awm-content-type-badge">${CONTENT_TYPE_TAG_LABEL[contentType]}${contentType === "research" ? ` x${calcResult.researchMultiplier}` : ""}</span>`
@@ -414,7 +377,7 @@
           ${contentTypeTag}
           ${modelDetected ? "" : '<span class="awm-model-badge" title="Model not detected on this page — using this site\'s default estimate.">estimated model</span>'}
         </div>
-        <div class="awm-sub">${subtitle} · ${mode} estimate</div>
+        <div class="awm-sub">${subtitle}</div>
         <div class="awm-mainstat">${fmtMl(waterMl)}</div>
         <div class="awm-bar"><div class="awm-bar-fill" style="width:0%"></div></div>
         <div class="awm-row">
@@ -513,8 +476,6 @@
     addTotals,
     createCard,
     estimateTokens,
-    getWaterMode,
-    setWaterMode,
     detectModelFromText,
     detectContentType,
     configReady,

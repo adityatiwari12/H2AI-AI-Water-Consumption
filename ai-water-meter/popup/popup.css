@@ -210,65 +210,6 @@ body {
   margin-top: 2px;
 }
 
-/* Mode card */
-
-.awm-popup-mode {
-  background: #ffffff;
-  border: 1px solid #e7ebf2;
-  border-radius: 16px;
-  padding: 14px 16px;
-  margin-bottom: 14px;
-}
-
-.awm-popup-mode-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #16181d;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  margin-bottom: 10px;
-}
-
-.awm-popup-mode-toggle {
-  display: flex;
-  gap: 8px;
-}
-
-.awm-popup-mode-btn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 9px 8px;
-  background: #ffffff;
-  border: 1.5px solid #e3e8f0;
-  color: #6b7280;
-  border-radius: 10px;
-  cursor: pointer;
-}
-
-.awm-popup-mode-btn svg {
-  width: 14px;
-  height: 14px;
-}
-
-.awm-popup-mode-btn.awm-active {
-  background: #eef4ff;
-  border-color: #2f7fed;
-  color: #2f7fed;
-}
-
-.awm-popup-mode-hint {
-  font-size: 10.5px;
-  color: #8a92a3;
-  line-height: 1.5;
-  margin-top: 10px;
-}
-
 /* Tabs */
 
 .awm-popup-tabs {

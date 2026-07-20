@@ -25,25 +25,13 @@ See that file's `_meta.waterEnergyMethodology` block and each model's
 `notes` field for exactly how each number was sourced or derived, and
 `ai-water-meter-v2-prd.md` for the full research writeup.
 
-### Playful vs. Accurate water estimate
+### Water estimate basis
 
-Because per-model water figures range from ~0.4 mL to ~75 mL per 1,000
-output tokens depending on model and methodology, there's a global toggle
-(popup → "Water estimate mode"), stored in `chrome.storage.local`:
-
-- **Playful** (default) — flat ~45 mL per 1,000 output tokens for every
-  model, the same order of magnitude as the original viral "46 L" screenshot
-  format. Keeps the glass-fill animation visible and numbers comparable
-  across models; not model-specific.
-- **Accurate** — each model's own best-sourced `models.config.json` figure.
-  For most non-Gemini models this is a derived estimate (see `notes`), so
-  it's often close to the playful number anyway; only Gemini currently has
-  an independently disclosed, much smaller figure, so its glass will barely
-  move in this mode. That's expected, not a bug.
-
-Lifetime/session totals in storage always accumulate the **accurate**
-figure regardless of the display toggle, so flipping the toggle never makes
-past totals jump.
+Every card shows each model's own best-sourced `models.config.json` figure
+— Google's disclosed comprehensive methodology for Gemini, derived/scaled
+estimates for everyone else (see each model's `notes` field and the card's
+(i) tooltip for sourcing). There is no separate "playful" flat-rate mode;
+what you see is what accumulates into the session/lifetime totals.
 
 ### Beyond text: image, video, canvas, and research
 
@@ -94,8 +82,8 @@ feature, not by inspecting a live page.
    and send a message — the card should appear under the response ~1-1.5s
    after it finishes streaming.
 6. Click the extension icon in the toolbar for lifetime totals across all
-   sites and models, a playful/accurate toggle, and a reset button. Click
-   the ↗ button on any card to pop that same view open in a small window.
+   sites and models, and a reset button. Click the ↗ button on any card to
+   pop that same view open in a small window.
 
 ## How it works
 
@@ -106,9 +94,8 @@ feature, not by inspecting a live page.
   pricing/water numbers — no logic changes needed.
 - `content/core.js` — shared engine: loads the config above, token
   estimation, cost/water/energy math (`calc()`), glass/bucket/drum SVG icon
-  rendering + fill animation, chrome.storage read/write for session +
-  lifetime totals (per site *and* per model), and the playful/accurate
-  water-mode setting. Loaded first on every site.
+  rendering + fill animation, and chrome.storage read/write for session +
+  lifetime totals (per site *and* per model). Loaded first on every site.
 - `content/<site>.js` — one adapter per site. Each uses a
   `MutationObserver` to watch the chat for new assistant messages, waits
   ~1.2-1.4s after the DOM stops changing (a simple proxy for "streaming
@@ -121,8 +108,7 @@ feature, not by inspecting a live page.
   standalone window when a card's ↗ button is clicked (content scripts
   can't call `chrome.windows.create` directly).
 - `popup/` — toolbar popup (and the ↗-triggered window) showing lifetime
-  totals per site, a per-model breakdown tab, the playful/accurate toggle,
-  and reset.
+  totals per site, a per-model breakdown tab, and reset.
 
 ### Model detection is best-effort and largely unverified
 

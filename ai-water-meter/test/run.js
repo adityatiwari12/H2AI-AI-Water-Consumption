@@ -159,11 +159,6 @@ async function main() {
   // and research-tagged responses, since they all share the same storage path.
   console.log(`  INFO: ${modelRows} distinct model/media entries in popup breakdown`);
 
-  await popupPage.locator('.awm-popup-mode-btn[data-mode="accurate"]').click();
-  await popupPage.waitForTimeout(200);
-  const accurateActive = await popupPage.locator('.awm-popup-mode-btn[data-mode="accurate"]').evaluate((el) => el.classList.contains("awm-active"));
-  check("mode toggle switches to accurate", accurateActive);
-
   check("no console/page errors in popup", popupErrors.length === 0, popupErrors.join(" | "));
 
   await popupPage.close();

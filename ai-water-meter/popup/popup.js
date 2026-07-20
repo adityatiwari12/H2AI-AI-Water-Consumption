@@ -5,7 +5,6 @@ const SITES = [
   { key: "deepseek", label: "DeepSeek" },
 ];
 
-const WATER_MODE_KEY = "awm_water_mode";
 const MODEL_PREFIX = "awm_lifetime_model_";
 
 const SITE_BADGES = {
@@ -31,11 +30,6 @@ function providerBadgeHtml(provider) {
   return `<span class="awm-popup-site-badge" style="background:#eef1f6;font-size:11px;font-weight:700;color:#6b7280;display:flex;align-items:center;justify-content:center">${initial}</span>`;
 }
 
-const MODE_HINTS = {
-  playful: "Flat ~45 mL / 1,000 output tokens for every model — same basis the original viral screenshot used. Makes the glass-fill animation visible; not model-specific.",
-  accurate: "Each model's best-sourced estimate (Google's comprehensive methodology for Gemini, derived figures elsewhere). Numbers are much smaller and mostly won't fill the glass — see each card's (i) tooltip for sourcing.",
-};
-
 function fmtMl(ml) {
   if (ml >= 1000) return `${(ml / 1000).toFixed(2)} L`;
   if (ml >= 1) return `${ml.toFixed(1)} mL`;
@@ -48,22 +42,6 @@ function fmtMlParts(ml) {
 }
 function fmtUsd(usd) {
   return `$${usd.toFixed(4)}`;
-}
-
-async function getWaterMode() {
-  const data = await chrome.storage.local.get([WATER_MODE_KEY]);
-  return data[WATER_MODE_KEY] === "accurate" ? "accurate" : "playful";
-}
-
-async function setWaterMode(mode) {
-  await chrome.storage.local.set({ [WATER_MODE_KEY]: mode });
-}
-
-function renderModeToggle(mode) {
-  document.querySelectorAll(".awm-popup-mode-btn").forEach((btn) => {
-    btn.classList.toggle("awm-active", btn.dataset.mode === mode);
-  });
-  document.getElementById("modeHint").textContent = MODE_HINTS[mode];
 }
 
 async function renderSiteBreakdown() {
@@ -140,18 +118,9 @@ function setActiveTab(tab) {
 }
 
 async function render() {
-  const mode = await getWaterMode();
-  renderModeToggle(mode);
   await renderSiteBreakdown();
   await renderModelBreakdown();
 }
-
-document.getElementById("modeToggle").addEventListener("click", async (e) => {
-  const btn = e.target.closest(".awm-popup-mode-btn");
-  if (!btn) return;
-  await setWaterMode(btn.dataset.mode);
-  renderModeToggle(btn.dataset.mode);
-});
 
 document.getElementById("breakdownTabs").addEventListener("click", (e) => {
   const btn = e.target.closest(".awm-popup-tab");
@@ -161,7 +130,7 @@ document.getElementById("breakdownTabs").addEventListener("click", (e) => {
 
 document.getElementById("resetBtn").addEventListener("click", async () => {
   const all = await chrome.storage.local.get(null);
-  const toRemove = Object.keys(all).filter((k) => k.startsWith("awm_") && k !== WATER_MODE_KEY);
+  const toRemove = Object.keys(all).filter((k) => k.startsWith("awm_"));
   await chrome.storage.local.remove(toRemove);
   render();
 });
