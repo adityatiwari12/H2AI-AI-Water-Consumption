@@ -516,7 +516,7 @@
         </div>
       </div>
     </div>
-    <div class="demo-caption">The receipt is the <b>real card</b> from the extension, cycling through example responses — not a screenshot. The small glasses meter is an added illustration, built from the same 250&nbsp;mL/2.5&nbsp;L thresholds `core.js` uses.</div>
+    <div class="demo-caption">The receipt is the <b>real card</b> from the extension, cycling through example responses — not a screenshot. The glasses meter is an added illustration using the same thresholds `core.js` uses; the image example's water figure is a commonly-cited estimate for this demo, separate from the extension's own sourced per-model config.</div>
   </div>
 </div>
 
@@ -778,16 +778,14 @@ function bucketSVG(fillPercent) {
 function iconFor(ml) { return ml >= BUCKET_ML * 0.999 ? "bucket" : "glass"; }
 function renderIcon(kind, fillPercent) { return kind === "bucket" ? bucketSVG(fillPercent) : glassSVG(fillPercent); }
 
-// Ordered so water usage visibly climbs across one full loop — a tiny image
-// generation first, ending on a Deep-Research-scale response big enough to
-// cross the real BUCKET_ML threshold (2500 mL = 10 glasses).
+// Ordered so water usage visibly climbs across one full loop, ending on a
+// Deep-Research-scale response big enough to cross the real BUCKET_ML
+// threshold (2500 mL = 10 glasses). NOTE: the image example's water figure
+// (500 mL) is a commonly-cited illustrative estimate for this landing-page
+// demo only — it is intentionally NOT read from content/models.config.json,
+// which instead grounds gpt-image-1-5 in a real GPU-metered study (see that
+// file's notes). Landing-page demo data, not the extension's real math.
 const examples = [
-  {
-    type: "image", model: "GPT Image 1.5", tag: "image",
-    prompt: "Generate a minimalist logo concept for a coffee brand, blue and white",
-    ack: "Here's a concept:",
-    waterMl: 3.25, costUsd: 0.0339, inTok: 14, outTok: 1056,
-  },
   {
     type: "text", model: "GPT-5", tag: null,
     prompt: "Write a short product description for a water bottle",
@@ -805,6 +803,12 @@ const examples = [
     prompt: "Give me a detailed 6-month roadmap for launching a SaaS product, including hiring plan",
     answer: "Month 1-2: validate the problem with 20 customer interviews, ship a thin MVP focused on the single core workflow, and set up basic analytics. Month 3: onboard first 10 paying pilot customers, hire a founding engineer if you're not already two, cut anything that isn't core...",
     waterMl: 96, costUsd: 0.0181, inTok: 18, outTok: 640,
+  },
+  {
+    type: "image", model: "GPT Image 1.5", tag: "image",
+    prompt: "Generate a minimalist logo concept for a coffee brand, blue and white",
+    ack: "Here's a concept:",
+    waterMl: 500, costUsd: 0.0339, inTok: 14, outTok: 1056,
   },
   {
     type: "research", model: "Claude Opus 4.8", tag: "research ×4",
