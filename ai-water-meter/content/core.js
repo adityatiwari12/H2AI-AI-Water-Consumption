@@ -203,7 +203,15 @@
     };
   }
 
-  async function addTotals(site, calcResult) {
+  // chrome.storage.local's get/set are not transactional. Two responses
+  // finishing close together (two tabs on the same site, or two sites
+  // sharing a model's lifetime key) would otherwise each read-modify-write
+  // storage interleaved, silently dropping one increment. Serialize every
+  // addTotals call through a single promise chain so each one's read
+  // reflects the previous one's write.
+  let addTotalsQueue = Promise.resolve();
+
+  async function addTotalsUnqueued(site, calcResult) {
     const { session, lifetime } = await getTotals(site);
     const nextSession = addTotal(session, calcResult);
     const nextLifetime = addTotal(lifetime, calcResult);
@@ -221,6 +229,15 @@
       [mKey]: nextModelTotal,
     });
     return { session: nextSession, lifetime: nextLifetime };
+  }
+
+  function addTotals(site, calcResult) {
+    const result = addTotalsQueue.then(() => addTotalsUnqueued(site, calcResult));
+    // Swallow rejections in the queue chain itself (the caller still sees
+    // the real error via `result`) so one failed write doesn't jam every
+    // addTotals call after it.
+    addTotalsQueue = result.catch(() => {});
+    return result;
   }
 
   // ---- icon rendering ---------------------------------------------------

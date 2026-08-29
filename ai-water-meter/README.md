@@ -72,52 +72,136 @@ All of this is exactly as best-effort as model detection (below) — the
 selectors were written by reasoning about typical DOM patterns for each
 feature, not by inspecting a live page.
 
-## Install (unpacked, for development)
+## Architecture
 
-1. Open `chrome://extensions`
-2. Toggle **Developer mode** on (top right)
-3. Click **Load unpacked**
-4. Select this `ai-water-meter` folder
-5. Visit chatgpt.com, claude.ai, gemini.google.com, or chat.deepseek.com
-   and send a message — the card should appear under the response ~1-1.5s
-   after it finishes streaming.
-6. Click the extension icon in the toolbar for lifetime totals across all
+```text
+manifest.json           MV3 config: which files load on which site, in what order
+content/
+  core.js                shared engine, loaded FIRST on every matched site
+  models.config.json      per-model pricing/water/energy data (fetched by core.js)
+  chatgpt.js               adapter, loaded SECOND — one of these four per site
+  claude.js
+  gemini.js
+  deepseek.js
+  styles.css              card styling, loaded on every matched site
+background.js            service worker — only job is opening popup/popup.html
+                          in a standalone window (content scripts can't call
+                          chrome.windows.create directly)
+popup/                  toolbar popup AND the ↗-triggered standalone window
+                          (same popup.html, two entry points)
+icons/                  toolbar/store icons + per-provider brand SVGs
+```
+
+**Request/response flow for a single AI reply:**
+
+1. `manifest.json`'s `content_scripts` block injects `core.js` then the
+   matching `content/<site>.js` into the page at `document_idle`, scoped by
+   `host_permissions`/`matches` to exactly the four supported domains — the
+   extension has no access to any other site.
+2. `core.js` immediately (self-invoking, guarded by
+   `window.__aiWaterMeterCore` against double-injection) starts an async
+   fetch of the bundled `content/models.config.json` via
+   `chrome.runtime.getURL()` — this is a **local file read**, not a network
+   call, so it works offline and needs no extra host permission. Every
+   other exported function `await`s this fetch (`configReady`) before using
+   the config, so call order relative to the fetch never matters.
+3. The site adapter sets up one `MutationObserver` on `document.body`
+   watching for new/changed assistant-message elements (a per-site
+   `ASSISTANT_SELECTOR`). Each time one appears or changes, a **1.2–1.4s
+   debounce timer** resets — this is a proxy for "the model finished
+   streaming," since none of the four sites expose a real
+   streaming-complete DOM event or attribute the extension can hook.
+4. When the debounce fires, the adapter: reads the element's `innerText`;
+   walks backward through the DOM to find the preceding user message (for
+   input-token estimation); runs **best-effort model detection** (regex
+   match against a model-picker element's text, falling back to a per-site
+   default `modelId` if nothing matches — the card then shows an
+   "estimated model" badge); runs **content-type detection**
+   (`core.js`'s `detectContentType()`) to classify the response as plain
+   text, an image, a video, a canvas/artifact panel, or a research-mode
+   answer.
+5. The adapter calls `AIWaterMeter.calc(responseText, promptText, modelId,
+   { contentType, ... })`, which looks up the model (or media model) in the
+   fetched config and returns token counts, cost, energy, and water — all
+   pure arithmetic, no network call, no data leaves the function.
+6. `AIWaterMeter.addTotals(site, calcResult)` persists the result: it reads
+   the current session/lifetime-per-site/lifetime-per-model totals from
+   `chrome.storage.local`, adds the new result, and writes all three keys
+   back. Every call goes through a single in-memory promise queue
+   (`addTotalsQueue` in `core.js`) so two responses finishing close
+   together — e.g. two tabs open on the same site — can't race and drop an
+   increment; each write's read is guaranteed to see the previous write.
+7. `AIWaterMeter.createCard(...)` builds the receipt DOM (every
+   interpolated value is either a formatted number or a string pulled from
+   the *bundled* `models.config.json` — never raw page text — so there's no
+   injection surface from a hostile page response), and the adapter inserts
+   it right after the message turn.
+8. Clicking a card's ↗ button sends `chrome.runtime.sendMessage({type:
+   "OPEN_ANALYSIS"})`; `background.js`'s listener opens `popup/popup.html`
+   in a small standalone window. `popup.js` reads every `awm_*` key out of
+   `chrome.storage.local` directly (no messaging needed) and renders the
+   site and per-model breakdowns.
+
+**Storage keys** (all in `chrome.storage.local`, all prefixed `awm_` so the
+popup's "Reset all stats" button can wipe them in one pass):
+
+| Key pattern | Contents |
+|---|---|
+| `awm_session_<site>` | Totals for the current browser session, per site |
+| `awm_lifetime_<site>` | All-time totals, per site |
+| `awm_lifetime_model_<modelId>` | All-time totals, per model (spans sites for a shared model id) |
+
+**Privacy:** the extension never makes an outbound network request. The
+only `fetch()` call in the codebase reads a file bundled in the extension
+itself. No prompt text, response text, or usage data is sent anywhere —
+everything lives in `chrome.storage.local` on your own machine.
+
+## Run it in your own browser
+
+1. Clone or download this repo.
+2. Open `chrome://extensions` (or `edge://extensions` — this also works
+   unmodified in Chromium-based Edge).
+3. Toggle **Developer mode** on (top right).
+4. Click **Load unpacked** and select the `ai-water-meter/` folder (the one
+   containing `manifest.json` — not the repo root).
+5. Visit chatgpt.com, claude.ai, gemini.google.com, or chat.deepseek.com,
+   send a message, and wait for it to finish streaming — the card appears
+   ~1–1.5s after.
+6. Click the extension's icon in the toolbar for lifetime totals across all
    sites and models, and a reset button. Click the ↗ button on any card to
-   pop that same view open in a small window.
+   pop that same view open in a small standalone window instead.
+7. After editing any file under `ai-water-meter/`, go back to
+   `chrome://extensions` and click the reload icon (⟳) on the extension's
+   card, then refresh any open tab on a supported site — content scripts
+   already running in a tab don't pick up code changes until the tab
+   reloads.
 
-## How it works
+**If the card doesn't show up:** open devtools (F12) → Console on the chat
+page. `core.js` and the site adapter log with an `[AI Water Meter]` prefix.
+A missing card almost always means `ASSISTANT_SELECTOR` in that site's
+`content/<site>.js` no longer matches the live DOM (see "Known limitation:
+selectors will break over time" below) — right-click a finished response →
+Inspect, and compare against the selector at the top of that file.
 
-- `content/models.config.json` — per-model config: pricing, water, energy,
-  methodology tag, and source URL. Fetched once via
-  `fetch(chrome.runtime.getURL(...))` when `core.js` loads (see
-  `web_accessible_resources` in `manifest.json`). Edit this file to update
-  pricing/water numbers — no logic changes needed.
-- `content/core.js` — shared engine: loads the config above, token
-  estimation, cost/water/energy math (`calc()`), glass/bucket/drum SVG icon
-  rendering + fill animation, and chrome.storage read/write for session +
-  lifetime totals (per site *and* per model). Loaded first on every site.
-- `content/<site>.js` — one adapter per site. Each uses a
-  `MutationObserver` to watch the chat for new assistant messages, waits
-  ~1.2-1.4s after the DOM stops changing (a simple proxy for "streaming
-  finished"), reads the final text, does **best-effort model detection**
-  (tries a couple of guessed model-picker selectors, maps the text to a
-  `models.config.json` key, falls back to a per-site default model if
-  nothing matches — the card shows an "estimated model" badge when that
-  happens), and injects the card right after the message.
-- `background.js` — service worker; opens `popup/popup.html` in a small
-  standalone window when a card's ↗ button is clicked (content scripts
-  can't call `chrome.windows.create` directly).
-- `popup/` — toolbar popup (and the ↗-triggered window) showing lifetime
-  totals per site, a per-model breakdown tab, and reset.
+## Automated tests
 
-### Model detection is best-effort and largely unverified
+`ai-water-meter/test/` is a headless Playwright harness that loads the real
+unpacked extension against static HTML fixtures for every site and content
+type (plain text, image, video, canvas/artifact, research) and asserts the
+whole pipeline — injection, model/content-type detection, `calc()`, storage,
+and the popup — works end to end, with zero page/console errors.
 
-The model-picker selectors in each `content/<site>.js` were written by
-reasoning about typical DOM patterns, not by inspecting live pages (no
-browser access was available while writing them). Expect most of them to
-need correcting against the real sites — see the manual QA checklist below.
-When detection fails, the card falls back to a per-site default model and
-shows a small "estimated model" badge rather than pretending certainty.
+```sh
+cd ai-water-meter/test
+npm install
+npm test
+```
+
+This does **not** validate real-site selector accuracy (it can't — it never
+touches chatgpt.com/claude.ai/etc.) — only that the extension's own code
+path is correct given DOM shaped the way each fixture assumes. Selector
+drift against the real, live sites can only be caught by the manual
+click-test in "Run it in your own browser" above.
 
 ## Known limitation: selectors will break over time
 
@@ -147,6 +231,61 @@ invalidated`. Every adapter now catches this specific error and bails
 quietly instead of throwing, but the card still won't appear on that tab
 until you refresh the page. This is normal Chrome MV3 behavior during
 development, not a bug in the calc/detection logic.
+
+## Publishing to the Chrome Web Store
+
+1. **Verify against real sites first.** The automated test suite (above)
+   only proves the extension's own logic is correct against fixtures — it
+   cannot catch live selector drift. Before submitting, manually click-test
+   all four sites per "Run it in your own browser," confirming the card
+   appears, the model name looks right (or gracefully shows "estimated
+   model"), and the popup renders. Do this on a clean profile too (a fresh
+   Chrome profile with only this extension loaded) to rule out interference
+   from other installed extensions.
+2. **Bump the version** in `manifest.json` (`"version": "2.0.0"` →
+   whatever's next) — the Web Store rejects a re-upload with an unchanged
+   version number.
+3. **Package the zip.** From inside `ai-water-meter/`, zip only what
+   `manifest.json` actually references — `manifest.json`, `background.js`,
+   `content/`, `popup/`, `icons/`. Leave out `test/`, `README.md`,
+   `ai-water-meter-v2-prd.md`, and `index.html` (the marketing landing
+   page) — none of it is loaded by the extension, and a smaller package is
+   faster for reviewers to check.
+
+   ```sh
+   cd ai-water-meter
+   zip -r ../h2ai-extension.zip manifest.json background.js content popup icons
+   ```
+
+4. **Create a one-time Chrome Web Store developer account** at
+   [chrome.google.com/webstore/devconsole](https://chrome.google.com/webstore/devconsole)
+   (Google account + a one-time $5 registration fee).
+5. **New item → upload the zip.**
+6. **Fill in the store listing:**
+   - *Description*: lead with what it does and, per the disclosure this
+     project treats as non-negotiable (see above), say plainly that the
+     water/energy/cost numbers are estimates, not measured provider data.
+   - *Category*: Productivity (or Developer Tools).
+   - *Screenshots*: at least one, 1280×800 or 640×400 PNG/JPEG — a
+     screenshot of the card under a real response works well; `index.html`
+     in this repo has matching brand colors if you want a promo tile to
+     match.
+   - *Icon*: `icons/icon128.png` is already the right size.
+   - *Privacy practices tab*: declare `storage` as the only permission and
+     justify it ("stores session/lifetime totals locally via
+     chrome.storage.local; no data leaves the browser"); justify each of
+     the four `host_permissions` entries as "read the page DOM to detect
+     when an AI response finishes, to estimate its footprint" — the
+     Architecture section above ("Privacy") is accurate copy for this.
+     Since the extension collects no user data at all, the "single purpose"
+     and data-use questions are the easiest part of the review.
+7. **Submit for review.** Typical turnaround is a few hours to a few
+   business days for a first submission; extensions with broad
+   `host_permissions` sometimes get an extra manual look — the four exact
+   domains here (no wildcards, no `<all_urls>`) are about as narrow as this
+   kind of tool can be, which helps.
+8. **After approval**, future updates are just: bump the version, re-zip,
+   upload on the same listing, submit again — no new registration needed.
 
 ## Ideas for v4
 
