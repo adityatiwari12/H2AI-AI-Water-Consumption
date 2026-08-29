@@ -287,7 +287,7 @@
   /* ---------- platform strip — blue marks the active/selected model ---------- */
   .platform-strip {
     display: flex; justify-content: center; align-items: center; gap: 10px;
-    flex-wrap: wrap; margin-top: -64px; margin-bottom: 96px; position: relative; z-index: 1;
+    flex-wrap: wrap; margin-top: -64px; margin-bottom: 32px; position: relative; z-index: 1;
   }
   .platform-strip .label { font-size: 13px; color: var(--text-muted); margin-right: 6px; }
   .platform-chip {
@@ -302,9 +302,12 @@
   }
 
   /* ---------- sections ---------- */
-  section { position: relative; z-index: 1; padding: 140px 0; }
-  @media (max-width: 1000px) { section { padding: 104px 0; } }
-  @media (max-width: 640px) { section { padding: 72px 0; } }
+  /* padding is per-side; two adjacent sections' bottom+top padding add up
+     to the actual visible gap, so this is deliberately half the target
+     120-160px inter-section rhythm, not the full amount. */
+  section { position: relative; z-index: 1; padding: 72px 0; }
+  @media (max-width: 1000px) { section { padding: 56px 0; } }
+  @media (max-width: 640px) { section { padding: 40px 0; } }
 
   .section-head { max-width: 620px; margin: 0 auto 56px; text-align: center; }
   .section-head .badge { justify-content: center; }
