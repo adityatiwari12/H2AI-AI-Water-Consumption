@@ -18,6 +18,11 @@ Free, open-source Chrome extension by [tokenistt](https://www.tokenistt.com).
 
 ---
 
+<div align="center">
+<img src="ai-water-meter/screenshots/Screenshot%202026-08-30%20005657.png" alt="H2AI's water-used card appearing under a real ChatGPT response" width="640" />
+<br/><sub>The real card, live under a real ChatGPT response — not a mockup.</sub>
+</div>
+
 Shows a small dark "receipt" card under every ChatGPT, Claude, Gemini, and
 DeepSeek response, with an animated glass → bucket → drum icon estimating
 water used and cost, plus a running session/lifetime total (popup). The
@@ -395,6 +400,8 @@ second lookup.
 
 `createCard()` builds one receipt `<div class="awm-card">` per response,
 inserted right after the message turn:
+
+<img src="ai-water-meter/screenshots/Screenshot%202026-08-30%20003832.png" alt="Close-up of the water-used card, showing icon, model row, main stat, and chip rows" width="420" />
 
 <details>
 <summary><strong>Icon, header, model row, main stat, chip rows</strong></summary>
