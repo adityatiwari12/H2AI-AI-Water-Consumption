@@ -215,8 +215,10 @@
   .demo-typing span:nth-child(3) { animation-delay: 0.3s; }
   @keyframes typingBounce { 0%, 60%, 100% { transform: translateY(0); opacity: .4; } 30% { transform: translateY(-5px); opacity: 1; } }
 
-  /* Generated-image placeholder — an abstract gradient "artwork" so the
-     image content-type demo stays 100% local, no fetched asset. */
+  /* Generated-image placeholder — a small inline SVG "mark" (matches the
+     "minimalist logo, blue and white" prompt above it) over a gradient
+     tile, so the image content-type demo stays 100% local with no
+     fetched asset, but still reads as a picture, not a color swatch. */
   .demo-image-box { display: none; margin-bottom: 18px; }
   .demo-image-box.is-visible { display: block; }
   .demo-image-art {
@@ -224,12 +226,24 @@
     background: linear-gradient(135deg, #0f2942, #1677FF 45%, #6cc4f5 78%, #eaf2ff);
     background-size: 220% 220%; background-position: 0% 0%;
     position: relative; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
     transition: filter 400ms ease;
     filter: blur(6px) saturate(1.4);
   }
-  .demo-image-box.is-loaded .demo-image-art { filter: blur(0) saturate(1); }
-  .demo-image-art::after {
+  .demo-image-art::before {
     content: ''; position: absolute; inset: 0;
+    background: radial-gradient(120% 120% at 50% 30%, transparent 45%, rgba(0,0,0,.28) 100%);
+  }
+  .demo-image-box.is-loaded .demo-image-art { filter: blur(0) saturate(1); }
+  .demo-image-mark {
+    position: relative; width: 68px; height: 68px;
+    opacity: 0; transform: scale(0.85);
+    transition: opacity 350ms ease 150ms, transform 350ms cubic-bezier(0.22,1,0.36,1) 150ms;
+    filter: drop-shadow(0 6px 14px rgba(0,0,0,.35));
+  }
+  .demo-image-box.is-loaded .demo-image-mark { opacity: 1; transform: scale(1); }
+  .demo-image-art::after {
+    content: ''; position: absolute; inset: 0; z-index: 1;
     background: linear-gradient(115deg, transparent 20%, rgba(255,255,255,.35) 40%, transparent 60%);
     background-size: 200% 100%; background-position: 150% 0;
     opacity: 0; transition: opacity 200ms ease;
@@ -489,7 +503,16 @@
           <div class="demo-typing" id="demoTyping" aria-hidden="true"><span></span><span></span><span></span></div>
           <div class="demo-msg-ai" id="demoAnswer"></div>
           <div class="demo-image-box" id="demoImageBox" aria-hidden="true">
-            <div class="demo-image-art"></div>
+            <div class="demo-image-art">
+              <svg class="demo-image-mark" viewBox="0 0 64 64" fill="none">
+                <path d="M17 25h24v11a12 12 0 0 1-12 12h0a12 12 0 0 1-12-12V25z" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/>
+                <path d="M41 28h3.5a5.5 5.5 0 0 1 0 11H41" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M22 19c0-2 2-2.2 2-4.2S22 12.8 22 11" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M29 19c0-2 2-2.2 2-4.2S29 12.8 29 11" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M36 19c0-2 2-2.2 2-4.2S36 12.8 36 11" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
+                <line x1="15" y1="52" x2="41" y2="52" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/>
+              </svg>
+            </div>
             <div class="demo-image-caption" id="demoImageCaption">generated_concept.png</div>
           </div>
           <div class="awm-card" id="awmDemoCard">

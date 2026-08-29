@@ -1,9 +1,23 @@
-# H2AI (Chrome Extension)
+<div align="center">
+<img src="ai-water-meter/icons/icon128.png" width="72" height="72" alt="H2AI icon" />
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](CONTRIBUTING.md)
+# H2AI
 
-Free, open-source browser extension by [tokenistt](https://www.tokenistt.com).
+**See what every AI prompt actually costs — water, energy, tokens, and cash — right under the response.**
+
+Free, open-source Chrome extension by [tokenistt](https://www.tokenistt.com).
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-1677FF.svg)](LICENSE)
+[![Contributions welcome](https://img.shields.io/badge/contributions-welcome-16834B.svg)](CONTRIBUTING.md)
+[![Manifest V3](https://img.shields.io/badge/manifest-V3-111111.svg)](ai-water-meter/manifest.json)
+[![Zero telemetry](https://img.shields.io/badge/telemetry-none-111111.svg)](#privacy)
+
+<img src="ai-water-meter/icons/brand/chatgpt.svg" width="18" height="18" alt="ChatGPT" title="ChatGPT" />&nbsp;&nbsp;<img src="ai-water-meter/icons/brand/claude.svg" width="18" height="18" alt="Claude" title="Claude" />&nbsp;&nbsp;<img src="ai-water-meter/icons/brand/gemini.svg" width="18" height="18" alt="Gemini" title="Gemini" />&nbsp;&nbsp;<img src="ai-water-meter/icons/brand/deepseek.svg" width="18" height="18" alt="DeepSeek" title="DeepSeek" />
+<br/><sub>ChatGPT&nbsp;&nbsp;·&nbsp;&nbsp;Claude&nbsp;&nbsp;·&nbsp;&nbsp;Gemini&nbsp;&nbsp;·&nbsp;&nbsp;DeepSeek</sub>
+</div>
+
+---
+
 Shows a small dark "receipt" card under every ChatGPT, Claude, Gemini, and
 DeepSeek response, with an animated glass → bucket → drum icon estimating
 water used and cost, plus a running session/lifetime total (popup). The
@@ -11,24 +25,32 @@ card also breaks out input/output tokens, input/output cost, and energy,
 and detects which model produced the response where the page's DOM allows.
 Beyond plain text, it also estimates image generation, video generation,
 Canvas/Artifact responses, and Deep-Research-style answers — see
-"Beyond text: image, video, canvas, and research" below.
+[Beyond text: image, video, canvas, and research](#beyond-text-image-video-canvas-and-research) below.
 
-## ⚠️ Important: these numbers are estimates, not real data
+| | |
+|---|---|
+| **Sites supported** | ChatGPT, Claude, Gemini, DeepSeek (4) |
+| **Models tracked** | 9 text + 3 media, config-driven ([schema](#ai-water-metercontentmodelsconfigjson-schema)) |
+| **Network calls** | 0 — the one `fetch()` reads a file bundled in the extension itself |
+| **Build step** | None — static MV3 JS/HTML/CSS, load unpacked |
+| **License** | [MIT](LICENSE) |
 
-No AI provider publishes real, per-query water or energy figures for every
-model. Numbers come from `ai-water-meter/content/models.config.json` — a mix of Google's
-own disclosed comprehensive methodology (Gemini only) and derived/scaled
-estimates for everyone else. Every model entry carries a `methodologyTag`
-and `sourceUrl`; the card's (i) tooltip states which basis is in play and
-links to the source. If you plan to publish or promote this extension, keep
-that disclosure — presenting any of this as exact data would be misleading.
+> [!WARNING]
+> **These numbers are estimates, not real data.** No AI provider publishes
+> real, per-query water or energy figures for every model. Numbers come from
+> [`ai-water-meter/content/models.config.json`](ai-water-meter/content/models.config.json)
+> — a mix of Google's own disclosed comprehensive methodology (Gemini only)
+> and derived/scaled estimates for everyone else. Every model entry carries a
+> `methodologyTag` and `sourceUrl`; the card's (i) tooltip states which basis
+> is in play and links to the source. If you plan to publish or promote this
+> extension, keep that disclosure — presenting any of this as exact data
+> would be misleading.
+>
+> See that file's `_meta.waterEnergyMethodology` block and each model's
+> `notes` field for exactly how each number was sourced or derived, and
+> `ai-water-meter-v2-prd.md` for the full research writeup.
 
-Water/cost/energy config lives in one file: `ai-water-meter/content/models.config.json`.
-See that file's `_meta.waterEnergyMethodology` block and each model's
-`notes` field for exactly how each number was sourced or derived, and
-`ai-water-meter-v2-prd.md` for the full research writeup.
-
-### Water estimate basis
+## Water estimate basis
 
 Every card shows each model's own best-sourced `models.config.json` figure
 — Google's disclosed comprehensive methodology for Gemini, derived/scaled
@@ -36,7 +58,7 @@ estimates for everyone else (see each model's `notes` field and the card's
 (i) tooltip for sourcing). There is no separate "playful" flat-rate mode;
 what you see is what accumulates into the session/lifetime totals.
 
-### Beyond text: image, video, canvas, and research
+## Beyond text: image, video, canvas, and research
 
 Each response is classified into one of five content types before `calc()`
 runs — `content/core.js`'s `detectContentType()`, called with a per-site
@@ -87,6 +109,8 @@ feature, not by inspecting a live page.
 
 ## Table of contents
 
+- [Water estimate basis](#water-estimate-basis)
+- [Beyond text: image, video, canvas, and research](#beyond-text-image-video-canvas-and-research)
 - [Repository layout](#repository-layout)
 - [Architecture](#architecture)
   - [Request/response flow for a single AI reply](#requestresponse-flow-for-a-single-ai-reply)
@@ -112,6 +136,9 @@ files under `manifest.json`'s own references (`background.js`, `content/`,
 folder (`ai-water-meter-v2-prd.md`, `test/`, `index.html`) is
 development-only and left out of the packaged zip (see "Publishing" below).
 
+<details>
+<summary><strong>Full file-by-file table</strong></summary>
+
 | Path | Role |
 |---|---|
 | `ai-water-meter/manifest.json` | MV3 manifest: permissions, `host_permissions` (the four supported domains, no wildcards), `content_scripts` (which JS/CSS loads on which site, in what order), `web_accessible_resources` (exposes `models.config.json` to content scripts), `action`/`background` wiring. |
@@ -133,6 +160,8 @@ development-only and left out of the packaged zip (see "Publishing" below).
 | `ai-water-meter/ai-water-meter-v2-prd.md` | Full research/product writeup behind the water/cost/energy numbers — the primary source doc for `models.config.json`'s derivations. Not shipped. |
 | `ai-water-meter/index.html` | Standalone marketing/landing page for the project (not loaded by the extension itself). Not shipped. |
 | `CONTRIBUTING.md`, `LICENSE` | Repo-root contribution guide and MIT license text. |
+
+</details>
 
 ## Architecture
 
@@ -242,6 +271,9 @@ icons/                  toolbar/store icons + per-provider brand SVGs
 one function that turns raw page text into a result. Always `async` (it
 awaits `configReady` internally first).
 
+<details>
+<summary><strong>Parameter table, return shape, and the text vs. image/video branches</strong></summary>
+
 | Parameter | Type | Meaning |
 | --- | --- | --- |
 | `responseText` | `string` | The assistant turn's `innerText` (adapters concatenate the canvas/artifact panel's text onto this before calling, for `contentType: "artifact"`). Ignored for `contentType: "image"`/`"video"` — pass `""`. |
@@ -275,12 +307,17 @@ unitCount` from a dedicated research source, never derived from a text
 model's per-token rate. Returns the same shape plus `unit`, `unitCount`,
 `tokenEquivalentSource`.
 
+</details>
+
 ### `ai-water-meter/content/models.config.json` schema
 
 The **only** file that needs editing to add a model or correct a number —
 `core.js` never hardcodes per-model figures (besides the two fallback
 entries used only if the fetch itself fails). As of writing it holds **9
 text models** and **3 media models**.
+
+<details>
+<summary><strong>Full annotated schema</strong></summary>
 
 ```jsonc
 {
@@ -325,6 +362,8 @@ text models** and **3 media models**.
 }
 ```
 
+</details>
+
 Every `models`/`mediaModels` entry's `notes` field is where the real
 sourcing lives — several figures are *derived* (scaled from a sibling
 model's price, or cross-computed between Wh and mL via Google's measured
@@ -357,6 +396,9 @@ second lookup.
 `createCard()` builds one receipt `<div class="awm-card">` per response,
 inserted right after the message turn:
 
+<details>
+<summary><strong>Icon, header, model row, main stat, chip rows</strong></summary>
+
 - **Icon** — `iconFor(waterMl)` picks `glass` (< 2500 mL), `bucket` (≥ 2500
   mL), or `drum` (≥ 25000 mL) based on *this single response's* water, not
   the session/lifetime total. `GLASS_ML` (250), `BUCKET_ML` (2500 = 10
@@ -380,6 +422,8 @@ inserted right after the message turn:
   muted row with the running **session** total (`{water} / {cost} this
   session ({count})`) for quick context without opening the popup.
 
+</details>
+
 ### Popup / standalone analysis window
 
 `popup/popup.html` + `popup.js` serve **two entry points** with identical
@@ -387,6 +431,9 @@ markup: the toolbar popup (click the extension's icon) and the small
 standalone window opened by a card's ↗ button (`background.js`'s
 `OPEN_ANALYSIS` handler, 380×520). Both read straight from
 `chrome.storage.local` — no messaging between the two.
+
+<details>
+<summary><strong>Site tab, model tab, reset behavior</strong></summary>
 
 - **Site tab** (default) — one row per supported site (`awm_lifetime_<site>`),
   each showing a provider-colored badge, water, cost, and response count;
@@ -399,6 +446,8 @@ standalone window opened by a card's ↗ button (`background.js`'s
   `awm_` (session, lifetime-per-site, and lifetime-per-model alike), then
   re-renders both tabs empty. This is a hard, immediate reset with no
   confirmation dialog and no undo.
+
+</details>
 
 ### Privacy
 
@@ -499,6 +548,12 @@ development, not a bug in the calc/detection logic.
 
 ## Publishing to the Chrome Web Store
 
+Not required to run the extension locally — only relevant when you're ready
+to ship it publicly.
+
+<details>
+<summary><strong>Full 8-step publishing checklist</strong></summary>
+
 1. **Verify against real sites first.** The automated test suite (above)
    only proves the extension's own logic is correct against fixtures — it
    cannot catch live selector drift. Before submitting, manually click-test
@@ -551,6 +606,8 @@ development, not a bug in the calc/detection logic.
    kind of tool can be, which helps.
 8. **After approval**, future updates are just: bump the version, re-zip,
    upload on the same listing, submit again — no new registration needed.
+
+</details>
 
 ## Ideas for v4
 
