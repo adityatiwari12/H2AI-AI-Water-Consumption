@@ -554,6 +554,10 @@ development, not a bug in the calc/detection logic.
 
 ## Ideas for v4
 
+Kept here as a quick summary; [`ROADMAP.md`](ROADMAP.md) at the repo root is
+the living, prioritized version with implementation notes and links to the
+open issues each item traces back to — update that file, not just this list.
+
 - Settings page to let users edit `models.config.json` from the popup
   instead of hand-editing the file
 - Weekly summary notification
