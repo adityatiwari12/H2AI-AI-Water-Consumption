@@ -2,3 +2,6 @@ node_modules/
 ai-water-meter/test/.pw-profile/
 ai-water-meter/test/tmp-extension/
 *.log
+.claude/
+.vscode/
+.netlify/
