@@ -100,7 +100,13 @@
         });
       } else {
         const responseText = contentType === "artifact" && artifactEl ? `${rawText}\n${artifactEl.innerText || ""}` : rawText;
-        if (!responseText.trim() || responseText.trim().length < 3) return;
+        if (!responseText.trim() || responseText.trim().length < 3) {
+          // Debounce fired before innerText caught up to the final paint —
+          // not a real "empty response". Un-mark so a later mutation gets a
+          // real retry instead of a permanent, silent skip.
+          processed.delete(el);
+          return;
+        }
         calcResult = await window.AIWaterMeter.calc(responseText, promptText, modelId, { contentType });
       }
 
@@ -115,6 +121,7 @@
     } catch (err) {
       if (!chrome.runtime?.id || String(err?.message || err).includes("Extension context invalidated")) return;
       console.error("[AI Water Meter]", err);
+      processed.delete(el); // transient failure — allow a retry on the next mutation rather than blacklisting this response forever
     }
   }
 
