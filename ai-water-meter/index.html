@@ -199,7 +199,44 @@
     padding: 9px 13px; border-radius: 14px; max-width: 74%;
     margin-left: auto; margin-bottom: 18px;
   }
-  .demo-msg-ai { font-size: 13.5px; color: var(--text-secondary); margin-bottom: 18px; line-height: 1.6; }
+  .demo-msg-ai { font-size: 13.5px; color: var(--text-secondary); margin-bottom: 18px; line-height: 1.6; min-height: 1.6em; }
+  .demo-msg-ai.is-typing::after {
+    content: ''; display: inline-block; width: 2px; height: 1em;
+    background: var(--text-secondary); margin-left: 2px; vertical-align: -2px;
+    animation: caretBlink 0.9s steps(1) infinite;
+  }
+  @keyframes caretBlink { 50% { opacity: 0; } }
+
+  /* AI "thinking" indicator shown before the response starts typing out */
+  .demo-typing { display: none; align-items: center; gap: 5px; height: 20px; margin-bottom: 18px; }
+  .demo-typing.is-visible { display: flex; }
+  .demo-typing span { width: 6px; height: 6px; border-radius: 50%; background: var(--border-strong); animation: typingBounce 1s infinite ease-in-out; }
+  .demo-typing span:nth-child(2) { animation-delay: 0.15s; }
+  .demo-typing span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes typingBounce { 0%, 60%, 100% { transform: translateY(0); opacity: .4; } 30% { transform: translateY(-5px); opacity: 1; } }
+
+  /* Generated-image placeholder — an abstract gradient "artwork" so the
+     image content-type demo stays 100% local, no fetched asset. */
+  .demo-image-box { display: none; margin-bottom: 18px; }
+  .demo-image-box.is-visible { display: block; }
+  .demo-image-art {
+    width: 100%; height: 148px; border-radius: 12px;
+    background: linear-gradient(135deg, #0f2942, #1677FF 45%, #6cc4f5 78%, #eaf2ff);
+    background-size: 220% 220%; background-position: 0% 0%;
+    position: relative; overflow: hidden;
+    transition: filter 400ms ease;
+    filter: blur(6px) saturate(1.4);
+  }
+  .demo-image-box.is-loaded .demo-image-art { filter: blur(0) saturate(1); }
+  .demo-image-art::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(115deg, transparent 20%, rgba(255,255,255,.35) 40%, transparent 60%);
+    background-size: 200% 100%; background-position: 150% 0;
+    opacity: 0; transition: opacity 200ms ease;
+  }
+  .demo-image-box.is-loading .demo-image-art::after { opacity: 1; animation: imageShimmer 1s ease-in-out infinite; }
+  @keyframes imageShimmer { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+  .demo-image-caption { font-size: 11.5px; color: var(--text-muted); margin-top: 8px; }
 
   /* ---- ported verbatim from content/core.js + styles.css — this is the
      real receipt card the extension renders, not a mockup, so its colors
@@ -216,7 +253,12 @@
   .awm-icon-wrap.awm-animate .awm-glass-svg path[clip-path] { transition: y 0.9s cubic-bezier(0.22,1,0.36,1); }
   .awm-body { flex: 1; min-width: 0; }
   .awm-header { display:flex; align-items:center; justify-content:space-between; }
+  .awm-header-icons { display: inline-flex; align-items: center; gap: 6px; }
   .awm-title { font-weight:600; font-size:13px; color:#f2f3f5; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; }
+  .awm-model-row { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+  .awm-model-name { font-size: 11px; font-weight: 600; color: #a9c6e8; }
+  .awm-model-badge { font-size: 9.5px; font-weight: 500; color: #c9a94f; background: #2a2415; border: 1px solid #4a3e1e; padding: 1px 6px; border-radius: 999px; }
+  .awm-content-type-badge { color: #8fb4de; background: #16232f; border: 1px solid #234a6b; text-transform: uppercase; letter-spacing: 0.3px; }
   .awm-sub { font-size:11.5px; color:#8a8f98; margin-top:1px; }
   .awm-mainstat { font-size:22px; font-weight:700; color:#fff; margin-top:6px; letter-spacing:-0.3px; font-family:'JetBrains Mono',monospace; }
   .awm-bar { width:100%; height:5px; background:#24262b; border-radius:3px; margin-top:8px; overflow:hidden; }
@@ -225,6 +267,19 @@
   .awm-chip { font-size:11px; font-weight:500; background:#1c1e22; border:1px solid #2a2c31; color:#cfd2d8; padding:3px 8px; border-radius:999px; white-space:nowrap; font-family:'JetBrains Mono',monospace; }
   .awm-chip-muted { color:#7d828b; }
   .awm-info { font-size:12px; color:#7d828b; }
+
+  /* ---- demo-only addition, NOT part of the real card — a small "N glasses"
+     meter built from the same GLASS_ML/BUCKET_ML constants as core.js, so
+     the numbers are real even though this row itself is illustrative. ---- */
+  .awm-glasses-row { display: flex; gap: 3px; margin-top: 10px; }
+  .awm-glass-pip {
+    width: 8px; height: 13px; border: 1.3px solid #33363c; border-radius: 1px 1px 3px 3px;
+    background: transparent; transform: scale(0.7); opacity: 0;
+    transition: transform 260ms cubic-bezier(0.22,1,0.36,1), opacity 260ms ease, background-color 260ms ease, border-color 260ms ease;
+  }
+  .awm-glass-pip.is-shown { transform: scale(1); opacity: 1; }
+  .awm-glass-pip.is-filled { background: #2f8fd8; border-color: #2f8fd8; }
+  .awm-glasses-label { font-size: 10.5px; color: #7d828b; margin-top: 6px; font-family: 'JetBrains Mono', monospace; }
 
   .demo-caption { text-align: center; font-size: 13px; color: var(--text-muted); margin-top: 24px; }
   .demo-caption b { color: var(--text-secondary); font-weight: 600; }
@@ -428,16 +483,29 @@
         </div>
         <div class="demo-chat">
           <div class="demo-msg-user" id="demoPrompt">Explain how transformers work</div>
-          <div class="demo-msg-ai" id="demoAnswer">Transformers process sequences using self-attention, letting every token weigh every other token's relevance at once instead of reading left-to-right like older RNNs...</div>
+          <div class="demo-typing" id="demoTyping" aria-hidden="true"><span></span><span></span><span></span></div>
+          <div class="demo-msg-ai" id="demoAnswer"></div>
+          <div class="demo-image-box" id="demoImageBox" aria-hidden="true">
+            <div class="demo-image-art"></div>
+            <div class="demo-image-caption" id="demoImageCaption">generated_concept.png</div>
+          </div>
           <div class="awm-card" id="awmDemoCard">
             <div class="awm-icon-wrap" id="awmIconWrap"></div>
             <div class="awm-body">
               <div class="awm-header">
                 <span class="awm-title">Water Used</span>
-                <span class="awm-info">ⓘ</span>
+                <span class="awm-header-icons">
+                  <span class="awm-content-type-badge awm-model-badge" id="awmContentBadge" hidden></span>
+                  <span class="awm-info">ⓘ</span>
+                </span>
               </div>
-              <div class="awm-sub">Water used in this response</div>
+              <div class="awm-model-row">
+                <span class="awm-model-name" id="awmModelName">GPT-5</span>
+              </div>
+              <div class="awm-sub" id="awmSubtitle">Water used in this response</div>
               <div class="awm-mainstat" id="awmMainStat">0 mL</div>
+              <div class="awm-glasses-row" id="awmGlassesRow" aria-hidden="true"></div>
+              <div class="awm-glasses-label" id="awmGlassesLabel"></div>
               <div class="awm-bar"><div class="awm-bar-fill" id="awmBarFill" style="width:0%"></div></div>
               <div class="awm-row">
                 <span class="awm-chip" id="awmCostChip">$0.0000 est. cost</span>
@@ -448,7 +516,7 @@
         </div>
       </div>
     </div>
-    <div class="demo-caption">This is the <b>real card</b>, cycling through example responses — not a screenshot.</div>
+    <div class="demo-caption">The receipt is the <b>real card</b> from the extension, cycling through example responses — not a screenshot. The small glasses meter is an added illustration, built from the same 250&nbsp;mL/2.5&nbsp;L thresholds `core.js` uses.</div>
   </div>
 </div>
 
@@ -710,41 +778,183 @@ function bucketSVG(fillPercent) {
 function iconFor(ml) { return ml >= BUCKET_ML * 0.999 ? "bucket" : "glass"; }
 function renderIcon(kind, fillPercent) { return kind === "bucket" ? bucketSVG(fillPercent) : glassSVG(fillPercent); }
 
+// Ordered so water usage visibly climbs across one full loop — a tiny image
+// generation first, ending on a Deep-Research-scale response big enough to
+// cross the real BUCKET_ML threshold (2500 mL = 10 glasses).
 const examples = [
-  { prompt: "Explain how transformers work", answer: "Transformers process sequences using self-attention, letting every token weigh every other token's relevance at once instead of reading left-to-right like older RNNs...", waterMl: 34, costUsd: 0.0062, inTok: 6, outTok: 210 },
-  { prompt: "Write a short product description for a water bottle", answer: "Insulated, leakproof, and built for the day you didn't plan for — keeps drinks cold for 24 hours.", waterMl: 9, costUsd: 0.0014, inTok: 9, outTok: 42 },
-  { prompt: "Give me a detailed 6-month roadmap for launching a SaaS product, including hiring plan", answer: "Month 1-2: validate the problem with 20 customer interviews, ship a thin MVP focused on the single core workflow, and set up basic analytics. Month 3: onboard first 10 paying pilot customers, hire a founding engineer if you're not already two, cut anything that isn't core...", waterMl: 96, costUsd: 0.0181, inTok: 18, outTok: 640 },
+  {
+    type: "image", model: "GPT Image 1.5", tag: "image",
+    prompt: "Generate a minimalist logo concept for a coffee brand, blue and white",
+    ack: "Here's a concept:",
+    waterMl: 3.25, costUsd: 0.0339, inTok: 14, outTok: 1056,
+  },
+  {
+    type: "text", model: "GPT-5", tag: null,
+    prompt: "Write a short product description for a water bottle",
+    answer: "Insulated, leakproof, and built for the day you didn't plan for — keeps drinks cold for 24 hours.",
+    waterMl: 9, costUsd: 0.0014, inTok: 9, outTok: 42,
+  },
+  {
+    type: "text", model: "GPT-5", tag: null,
+    prompt: "Explain how transformers work",
+    answer: "Transformers process sequences using self-attention, letting every token weigh every other token's relevance at once instead of reading left-to-right like older RNNs...",
+    waterMl: 34, costUsd: 0.0062, inTok: 6, outTok: 210,
+  },
+  {
+    type: "text", model: "Claude Sonnet 5", tag: null,
+    prompt: "Give me a detailed 6-month roadmap for launching a SaaS product, including hiring plan",
+    answer: "Month 1-2: validate the problem with 20 customer interviews, ship a thin MVP focused on the single core workflow, and set up basic analytics. Month 3: onboard first 10 paying pilot customers, hire a founding engineer if you're not already two, cut anything that isn't core...",
+    waterMl: 96, costUsd: 0.0181, inTok: 18, outTok: 640,
+  },
+  {
+    type: "research", model: "Claude Opus 4.8", tag: "research ×4",
+    prompt: "Write a comprehensive research report comparing renewable energy adoption policies across G20 nations",
+    answer: "Executive summary: adoption trajectories diverge sharply by region — the EU's carbon pricing mechanisms show measurable acceleration post-2024, while several G20 members remain reliant on transitional gas infrastructure...",
+    waterMl: 2540, costUsd: 0.841, inTok: 22, outTok: 8400,
+  },
 ];
 
-let i = 0;
-function renderDemo() {
-  const ex = examples[i % examples.length];
-  document.getElementById("demoPrompt").textContent = ex.prompt;
-  document.getElementById("demoAnswer").textContent = ex.answer;
-  document.getElementById("awmMainStat").textContent = fmtMl(ex.waterMl);
-  document.getElementById("awmCostChip").textContent = fmtUsd(ex.costUsd) + " est. cost";
-  document.getElementById("awmTokChip").textContent = ex.inTok + " in · " + ex.outTok + " out tokens";
+const REDUCED_MOTION = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, REDUCED_MOTION ? 0 : ms));
+
+const els = {
+  prompt: document.getElementById("demoPrompt"),
+  typing: document.getElementById("demoTyping"),
+  answer: document.getElementById("demoAnswer"),
+  imageBox: document.getElementById("demoImageBox"),
+  imageCaption: document.getElementById("demoImageCaption"),
+  card: document.getElementById("awmDemoCard"),
+  modelName: document.getElementById("awmModelName"),
+  contentBadge: document.getElementById("awmContentBadge"),
+  subtitle: document.getElementById("awmSubtitle"),
+  mainstat: document.getElementById("awmMainStat"),
+  glassesRow: document.getElementById("awmGlassesRow"),
+  glassesLabel: document.getElementById("awmGlassesLabel"),
+  iconWrap: document.getElementById("awmIconWrap"),
+  barFill: document.getElementById("awmBarFill"),
+  costChip: document.getElementById("awmCostChip"),
+  tokChip: document.getElementById("awmTokChip"),
+};
+
+function typeText(el, text) {
+  return new Promise((resolve) => {
+    if (REDUCED_MOTION || !text) { el.textContent = text || ""; resolve(); return; }
+    const total = text.length;
+    const durationMs = Math.min(2200, Math.max(450, total * 14));
+    const stepMs = 16;
+    const charsPerStep = Math.max(1, Math.ceil(total / (durationMs / stepMs)));
+    let idx = 0;
+    el.textContent = "";
+    el.classList.add("is-typing");
+    const timer = setInterval(() => {
+      idx += charsPerStep;
+      el.textContent = text.slice(0, idx);
+      if (idx >= total) {
+        clearInterval(timer);
+        el.classList.remove("is-typing");
+        resolve();
+      }
+    }, stepMs);
+  });
+}
+
+function renderGlasses(waterMl) {
+  els.glassesRow.innerHTML = "";
+  const isBucket = waterMl >= BUCKET_ML * 0.999;
+  const rawCount = waterMl / GLASS_ML;
+  const count = Math.min(10, Math.max(0, Math.round(rawCount)));
+  const pips = [];
+  for (let n = 0; n < 10; n++) {
+    const pip = document.createElement("span");
+    pip.className = "awm-glass-pip";
+    els.glassesRow.appendChild(pip);
+    pips.push(pip);
+  }
+  pips.forEach((pip, n) => {
+    setTimeout(() => {
+      pip.classList.add("is-shown");
+      if (n < count) pip.classList.add("is-filled");
+    }, 60 + n * 45);
+  });
+  els.glassesLabel.textContent = isBucket
+    ? "≈ 10 glasses = 1 bucket"
+    : rawCount < 0.5
+    ? "< 1 glass (250 mL)"
+    : "≈ " + count + (count === 1 ? " glass" : " glasses") + " (250 mL each)";
+}
+
+async function revealCard(ex) {
+  els.modelName.textContent = ex.model;
+  if (ex.tag) { els.contentBadge.hidden = false; els.contentBadge.textContent = ex.tag; }
+  else { els.contentBadge.hidden = true; }
+
+  els.subtitle.textContent =
+    ex.type === "image" ? "Water used to generate this image" :
+    ex.type === "research" ? "Water used for this research response" :
+    "Water used in this response";
+
+  els.mainstat.textContent = fmtMl(ex.waterMl);
+  els.costChip.textContent = fmtUsd(ex.costUsd) + " est. cost";
+  els.tokChip.textContent = ex.inTok + " in · " + ex.outTok + (ex.type === "image" ? " out-equiv tokens" : " out tokens");
 
   const kind = iconFor(ex.waterMl);
   const targetMl = kind === "bucket" ? BUCKET_ML : GLASS_ML;
   const targetPct = Math.min(100, (ex.waterMl / targetMl) * 100);
+  els.iconWrap.innerHTML = renderIcon(kind, 0);
+  els.barFill.style.width = "0%";
+  renderGlasses(ex.waterMl);
 
-  const iconWrap = document.getElementById("awmIconWrap");
-  const barFill = document.getElementById("awmBarFill");
-  iconWrap.innerHTML = renderIcon(kind, 0);
-  barFill.style.width = "0%";
+  // replay the card's own ported-verbatim awm-fade-in animation and the
+  // icon fill transition without touching either rule's CSS.
+  els.card.style.animation = "none";
+  els.card.style.opacity = "0";
+  void els.card.offsetWidth;
+  els.card.style.animation = "";
+  els.card.style.opacity = "";
 
-  requestAnimationFrame(() => {
-    setTimeout(() => {
-      iconWrap.innerHTML = renderIcon(kind, targetPct);
-      iconWrap.classList.add("awm-animate");
-      barFill.style.width = targetPct + "%";
-    }, 80);
-  });
-  i++;
+  await sleep(80);
+  els.iconWrap.innerHTML = renderIcon(kind, targetPct);
+  els.iconWrap.classList.add("awm-animate");
+  els.barFill.style.width = targetPct + "%";
 }
-renderDemo();
-setInterval(renderDemo, 3600);
+
+async function playExample(ex) {
+  els.card.style.opacity = "0";
+  els.imageBox.classList.remove("is-visible", "is-loading", "is-loaded");
+  els.answer.textContent = "";
+  els.answer.hidden = false;
+
+  await typeText(els.prompt, ex.prompt);
+  els.typing.classList.add("is-visible");
+  await sleep(600);
+  els.typing.classList.remove("is-visible");
+
+  if (ex.type === "image") {
+    await typeText(els.answer, ex.ack);
+    els.imageCaption.textContent = "generated_concept_0" + (examples.indexOf(ex) + 1) + ".png";
+    els.imageBox.classList.add("is-visible", "is-loading");
+    await sleep(750);
+    els.imageBox.classList.remove("is-loading");
+    els.imageBox.classList.add("is-loaded");
+    await sleep(250);
+  } else {
+    await typeText(els.answer, ex.answer);
+  }
+
+  await sleep(450);
+  await revealCard(ex);
+  await sleep(ex.type === "research" ? 3400 : 2600);
+}
+
+async function loop() {
+  let i = 0;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    await playExample(examples[i % examples.length]);
+    i++;
+  }
+}
+loop();
 </script>
 
 </body>
