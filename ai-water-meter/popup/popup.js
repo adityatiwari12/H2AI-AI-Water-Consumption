@@ -44,20 +44,28 @@ function fmtUsd(usd) {
   return `$${usd.toFixed(4)}`;
 }
 
+function fmtCarbon(g) {
+  if (g >= 1000) return `${(g / 1000).toFixed(2)} kg`;
+  if (g >= 1) return `${g.toFixed(2)} g`;
+  return `${g.toFixed(3)} g`;
+}
+
 async function renderSiteBreakdown() {
   const keys = SITES.map((s) => `awm_lifetime_${s.key}`);
   const data = await chrome.storage.local.get(keys);
 
   let totalWater = 0;
   let totalCost = 0;
+  let totalCarbon = 0;
   let totalChats = 0;
   const breakdown = document.getElementById("siteBreakdown");
   breakdown.innerHTML = "";
 
   SITES.forEach((s) => {
-    const stat = data[`awm_lifetime_${s.key}`] || { waterMl: 0, costUsd: 0, count: 0 };
+    const stat = data[`awm_lifetime_${s.key}`] || { waterMl: 0, costUsd: 0, carbonG: 0, count: 0 };
     totalWater += stat.waterMl;
     totalCost += stat.costUsd;
+    totalCarbon += stat.carbonG || 0;
     totalChats += stat.count || 0;
 
     const row = document.createElement("div");
@@ -75,6 +83,7 @@ async function renderSiteBreakdown() {
   document.getElementById("totalWaterNum").textContent = waterParts.num;
   document.getElementById("totalWaterUnit").textContent = waterParts.unit;
   document.getElementById("totalCost").textContent = fmtUsd(totalCost);
+  document.getElementById("totalCarbon").textContent = fmtCarbon(totalCarbon);
   document.getElementById("totalChats").textContent = totalChats;
 }
 

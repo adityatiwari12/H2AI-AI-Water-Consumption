@@ -8,6 +8,14 @@
  * methodology (Gemini only) and derived/scaled estimates for everyone else.
  * Every model entry carries a methodologyTag + sourceUrl, and the card's (i)
  * tooltip states which basis is in play. Don't strip that.
+ *
+ * Carbon is weaker still: no provider discloses which grid/datacenter
+ * powered a request, so carbon is always a straight derivation of the
+ * energy estimate above via one global average grid carbon intensity
+ * (models.config.json's carbonIntensity, sourced from IEA) — never an
+ * independently-measured figure of its own. Its confidence can't exceed the
+ * energy figure it's derived from. Don't present it as more precise than
+ * that in UI copy or docs.
  */
 (function () {
   if (window.__aiWaterMeterCore) return; // avoid double-injection
@@ -59,9 +67,17 @@
   // real cost breakdown this was derived from.
   const FALLBACK_RESEARCH_MODE = { defaultMultiplier: 4 };
 
+  // No AI provider discloses which grid/datacenter actually powered a given
+  // request, so carbon is always a straight derivation of the already-
+  // estimated energyWh via one global average grid carbon intensity — never
+  // an independently-sourced figure of its own. See models.config.json's
+  // carbonIntensity.notes for the real IEA figure this fallback mirrors.
+  const FALLBACK_CARBON_INTENSITY = { gCo2ePerKwh: 445 };
+
   let MODELS = {};
   let MEDIA_MODELS = {};
   let RESEARCH_MODE = FALLBACK_RESEARCH_MODE;
+  let CARBON_INTENSITY = FALLBACK_CARBON_INTENSITY;
   const configReady = (async () => {
     try {
       const url = chrome.runtime.getURL("content/models.config.json");
@@ -70,11 +86,13 @@
       MODELS = data.models || {};
       MEDIA_MODELS = data.mediaModels || {};
       RESEARCH_MODE = data.researchMode || FALLBACK_RESEARCH_MODE;
+      CARBON_INTENSITY = data.carbonIntensity || FALLBACK_CARBON_INTENSITY;
     } catch (err) {
       console.warn("[AI Water Meter] failed to load models.config.json, using fallback model only", err);
       MODELS = {};
       MEDIA_MODELS = {};
       RESEARCH_MODE = FALLBACK_RESEARCH_MODE;
+      CARBON_INTENSITY = FALLBACK_CARBON_INTENSITY;
     }
   })();
 
@@ -84,6 +102,12 @@
 
   function lookupMediaModel(mediaModelId) {
     return MEDIA_MODELS[mediaModelId] || FALLBACK_MEDIA_MODEL;
+  }
+
+  // Applied uniformly to any response's energyWh, text or media alike — see
+  // FALLBACK_CARBON_INTENSITY above for why this can't be model-specific.
+  function carbonGFromEnergy(energyWh) {
+    return (energyWh / 1000) * CARBON_INTENSITY.gCo2ePerKwh;
   }
 
   // ---- token + calc engine ---------------------------------------------------
@@ -128,6 +152,7 @@
       // rate.
       const energyWh = (media.energyWhPerUnit || 0) * unitCount;
       const waterMl = (media.waterMlPerUnit || 0) * unitCount;
+      const carbonG = carbonGFromEnergy(energyWh);
 
       return {
         modelId: resolvedModelId,
@@ -144,6 +169,7 @@
         costUsd,
         energyWh,
         waterMl,
+        carbonG,
         methodologyTag: media.methodologyTag,
         sourceUrl: media.sourceUrl,
       };
@@ -162,6 +188,7 @@
 
     const energyWh = (effectiveOutTokens / 1e6) * model.energyWhPerOutputMTok;
     const waterMl = (effectiveOutTokens / 1e6) * model.waterMlPerOutputMTok;
+    const carbonG = carbonGFromEnergy(energyWh);
 
     return {
       modelId: resolvedModelId,
@@ -176,6 +203,7 @@
       costUsd,
       energyWh,
       waterMl,
+      carbonG,
       methodologyTag: model.methodologyTag,
       sourceUrl: model.sourceUrl,
     };
@@ -192,7 +220,7 @@
     return `awm_lifetime_model_${modelId}`;
   }
 
-  const EMPTY_TOTAL = { waterMl: 0, costUsd: 0, costInUsd: 0, costOutUsd: 0, energyWh: 0, inTokens: 0, outTokens: 0, count: 0 };
+  const EMPTY_TOTAL = { waterMl: 0, costUsd: 0, costInUsd: 0, costOutUsd: 0, energyWh: 0, carbonG: 0, inTokens: 0, outTokens: 0, count: 0 };
 
   function addTotal(total, calcResult) {
     return {
@@ -201,6 +229,7 @@
       costInUsd: (total.costInUsd || 0) + calcResult.costInUsd,
       costOutUsd: (total.costOutUsd || 0) + calcResult.costOutUsd,
       energyWh: (total.energyWh || 0) + calcResult.energyWh,
+      carbonG: (total.carbonG || 0) + (calcResult.carbonG || 0),
       inTokens: (total.inTokens || 0) + calcResult.inTokens,
       outTokens: (total.outTokens || 0) + calcResult.outTokens,
       count: (total.count || 0) + 1,
@@ -329,6 +358,12 @@
     return `${wh.toFixed(2)} Wh`;
   }
 
+  function fmtCarbon(g) {
+    if (g >= 1000) return `${(g / 1000).toFixed(2)} kg CO₂e`;
+    if (g >= 1) return `${g.toFixed(2)} g CO₂e`;
+    return `${g.toFixed(3)} g CO₂e`;
+  }
+
   const METHODOLOGY_LABELS = {
     "google-comprehensive": "Google comprehensive (full serving stack)",
     "public-estimate": "public estimate (no vendor methodology)",
@@ -350,19 +385,27 @@
     research: "research",
   };
 
+  // Built fresh per call (not a module-load-time constant) so it always
+  // reflects CARBON_INTENSITY as actually loaded from models.config.json,
+  // not whatever FALLBACK_CARBON_INTENSITY held before configReady settled.
+  function buildCarbonClause() {
+    return ` Carbon is derived from that energy figure using a global average grid carbon intensity (~${CARBON_INTENSITY.gCo2ePerKwh} g CO₂e/kWh, IEA) — no provider discloses which grid actually powered a request, so this is applied uniformly rather than per-model.`;
+  }
+
   function buildTooltipText(calcResult) {
     const methodologyLabel = METHODOLOGY_LABELS[calcResult.methodologyTag] || calcResult.methodologyTag;
+    const carbonClause = buildCarbonClause();
 
     if (calcResult.contentType === "image" || calcResult.contentType === "video") {
       const unitLabel = calcResult.unitCount > 1 ? `${calcResult.unitCount} ${calcResult.unit}s` : `1 ${calcResult.unit}`;
-      return `${calcResult.modelDisplayName}: priced for ${unitLabel} at this vendor's real rate. No AI provider discloses real water/energy figures for image or video generation, so water/energy uses a dedicated per-unit research measurement for this media type (${methodologyLabel}) — not borrowed from a text model's per-token rate.`;
+      return `${calcResult.modelDisplayName}: priced for ${unitLabel} at this vendor's real rate. No AI provider discloses real water/energy figures for image or video generation, so water/energy uses a dedicated per-unit research measurement for this media type (${methodologyLabel}) — not borrowed from a text model's per-token rate.${carbonClause}`;
     }
 
     if (calcResult.contentType === "research") {
-      return `Research mode detected: this looks like a multi-step research/deep-search response. Hidden tool calls (web searches, page reads) aren't visible on the page, so output is scaled x${calcResult.researchMultiplier} as a rough proxy, based on a real published cost breakdown for one provider's Deep Research feature, applied uniformly since per-provider data doesn't exist. Not a measurement.`;
+      return `Research mode detected: this looks like a multi-step research/deep-search response. Hidden tool calls (web searches, page reads) aren't visible on the page, so output is scaled x${calcResult.researchMultiplier} as a rough proxy, based on a real published cost breakdown for one provider's Deep Research feature, applied uniformly since per-provider data doesn't exist. Not a measurement.${carbonClause}`;
     }
 
-    return `Uses ${calcResult.modelDisplayName}'s best-sourced estimate (${methodologyLabel}). No AI provider publishes real per-query figures for every model — some numbers here are derived, not directly measured.`;
+    return `Uses ${calcResult.modelDisplayName}'s best-sourced estimate (${methodologyLabel}). No AI provider publishes real per-query figures for every model — some numbers here are derived, not directly measured.${carbonClause}`;
   }
 
   // ---- card builder -------------------------------------------------------
@@ -388,7 +431,7 @@
       <div class="awm-icon-wrap">${renderIcon(kind, 0)}</div>
       <div class="awm-body">
         <div class="awm-header">
-          <span class="awm-title">Water Used</span>
+          <span class="awm-title">AI Impact</span>
           <span class="awm-header-icons">
             <span class="awm-info" tabindex="0">ⓘ
               <span class="awm-tooltip">
@@ -410,6 +453,7 @@
         <div class="awm-row">
           <span class="awm-chip">${calcResult.inTokens} in · ${calcResult.outTokens} ${outTokLabel} tok</span>
           <span class="awm-chip awm-chip-muted">${fmtWh(calcResult.energyWh)}</span>
+          <span class="awm-chip awm-chip-muted">${fmtCarbon(calcResult.carbonG)}</span>
         </div>
         <div class="awm-row">
           <span class="awm-chip">${fmtUsd(calcResult.costInUsd)} in + ${fmtUsd(calcResult.costOutUsd)} out</span>

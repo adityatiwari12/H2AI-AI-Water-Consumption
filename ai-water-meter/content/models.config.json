@@ -172,5 +172,11 @@
     "defaultMultiplier": 4,
     "sourceUrl": "https://tokencost.app/blog/gemini-deep-research-agent-cost",
     "notes": "See _meta.waterEnergyMethodology.researchMode for the full derivation. Applied to effective output tokens (cost + water + energy alike) for any response detected as a Deep-Research-style multi-step answer, uniformly across sites for lack of per-provider data. Confidence: low-medium (grounded in one real cost breakdown for one provider, extrapolated to all)."
+  },
+  "carbonIntensity": {
+    "gCo2ePerKwh": 445,
+    "sourceUrl": "https://www.iea.org/reports/electricity-2025/emissions",
+    "notes": "Global average CO2 intensity of electricity generation: 445 g CO2/kWh, the latest full-year actual per IEA's Electricity 2025 report (IEA forecasts this declining toward ~400 g by 2027 as clean generation grows worldwide, but that's a moving global blended average, not something this file re-derives per release). No AI provider discloses which grid(s), datacenter(s), or PUE actually powered a given inference request, so — same treatment as researchMode's multiplier — one global constant is applied uniformly to every model's/mediaModel's already-estimated energyWh rather than a provider- or region-specific factor, which isn't public. Carbon is therefore always a straight derivation of a response's energy estimate, never an independently sourced figure of its own; its confidence can never exceed the energy figure it's derived from. Confidence: low (uniform global proxy, not model- or datacenter-specific).",
+    "verified": "figure confirmed via web search 2026-08-30 against IEA's Electricity 2025 report (445 g CO2/kWh for 2024, the latest actual)."
   }
 }
