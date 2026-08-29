@@ -5,8 +5,8 @@ extension — contributing doesn't require any tooling beyond a text editor,
 Chrome, and (optionally) Node for the automated test suite.
 
 The extension itself lives in the `ai-water-meter/` subfolder, not the repo
-root — see [`ai-water-meter/README.md`](ai-water-meter/README.md) for the
-full architecture writeup before making changes.
+root — see [`README.md`](README.md) for the full architecture writeup before
+making changes.
 
 ## The highest-value contribution: fixing a live selector
 
