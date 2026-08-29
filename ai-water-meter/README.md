@@ -1,5 +1,8 @@
 # H2AI (Chrome Extension)
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../LICENSE)
+[![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](../CONTRIBUTING.md)
+
 Free, open-source browser extension by [tokenistt](https://www.tokenistt.com).
 Shows a small dark "receipt" card under every ChatGPT, Claude, Gemini, and
 DeepSeek response, with an animated glass → bucket → drum icon estimating
@@ -41,17 +44,27 @@ runs — `content/core.js`'s `detectContentType()`, called with a per-site
 for anything other than plain text.
 
 - **image / video** — no vendor publishes water/energy data for media
-  generation. Each entry in `models.config.json`'s new `mediaModels` section
-  converts its unit (1 image, 1 second of video) into an output-token
-  equivalent — a *real* one where the vendor publishes it (OpenAI tokenizes
-  `gpt-image-1.5` output: 272/1056/4160 tokens for low/medium/high quality),
-  otherwise imputed by dividing the real per-unit price by a reference text
-  model's per-token rate (Google's Imagen/Veo, billed flat per unit with no
-  published tokenization). Water/energy is then borrowed from that reference
-  model's rate. Cost uses the vendor's real price directly, not the token
-  conversion. Supported today: ChatGPT (image only), Gemini (image + video).
-  Claude and DeepSeek have no native in-chat image/video generation to
-  detect.
+  generation, so `models.config.json`'s `mediaModels` entries ground
+  `energyWhPerUnit`/`waterMlPerUnit` (per image, or per second of video) in
+  dedicated third-party research instead: Bertazzini et al.'s real
+  GPU-metered study of image-generation models
+  ([arXiv:2506.17016](https://arxiv.org/abs/2506.17016)) for images, and an
+  architectural-scaling-law estimate targeting Veo specifically
+  ([arXiv:2607.04553](https://arxiv.org/abs/2607.04553)) for video — not
+  borrowed from an unrelated text model's per-token rate, which was v3's
+  approach and is a proxy of a proxy (a diffusion/video model's compute
+  doesn't scale like an autoregressive text model's). Cost uses the vendor's
+  real per-unit price directly; `tokenEquivalentPerUnit` (a *real* count
+  where the vendor publishes one — OpenAI tokenizes `gpt-image-1.5` output at
+  272/1056/4160 tokens for low/medium/high quality — otherwise imputed from
+  price) is display-only now, shown in the card's "out-equiv tok" chip, and
+  no longer feeds the water/energy math. Only OpenAI's image models bill
+  prompt tokens separately (`inputPricePerMTok`, each model's own published
+  rate); Google's Imagen/Veo are flat per-unit prices with no separate input
+  charge, so that field is omitted for them rather than fabricating a cost
+  Google doesn't bill. Supported today: ChatGPT (image only), Gemini (image and
+  video). Claude and DeepSeek have no native in-chat image/video generation
+  to detect.
 - **canvas / artifact** (ChatGPT Canvas, Claude Artifacts, Gemini Canvas) —
   the side-panel content is concatenated with the inline chat reply before
   tokenizing, so the total reflects everything actually generated, not just
@@ -296,3 +309,28 @@ development, not a bug in the calc/detection logic.
 - Per-model breakdown for the *session* total, not just lifetime
 - A remote-hosted `models.config.json` option so pricing/water updates
   don't require republishing the extension (see PRD §4.9, open question 2)
+
+## Contributing
+
+Contributions are welcome — this project runs on volunteer fixes to exactly
+the kind of thing that breaks on its own: a site's DOM changing, a model's
+price moving, a new model shipping. See
+[`CONTRIBUTING.md`](../CONTRIBUTING.md) at the repo root for the full guide,
+but the short version:
+
+- **The single highest-value contribution** is fixing a selector that's
+  drifted on a real, live site — see "Known limitation: selectors will break
+  over time" above. You don't need to understand the rest of the codebase to
+  do this.
+- Adding or correcting a `content/models.config.json` entry needs a
+  `sourceUrl` and a `notes` field explaining the derivation — this project's
+  whole premise is that every number traces back to something real.
+- Run `cd ai-water-meter/test && npm install && npm test` before opening a
+  PR; for selector fixes, also manually click-test the real site (automated
+  fixtures can't catch live-DOM drift).
+
+## License
+
+[MIT](../LICENSE) — free to use, modify, and redistribute, including
+commercially. See the [LICENSE](../LICENSE) file at the repo root for the
+full text.

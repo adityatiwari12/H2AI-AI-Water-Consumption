@@ -7,7 +7,7 @@
       "public-estimate-research": "University of Rhode Island AI Lab study (reported by Tom's Hardware/DCD, Aug 2025): measured average power draw per response for several deployed models by querying them directly and metering GPU power, not vendor-disclosed. GPT-5: avg 18.35 Wh, up to 40 Wh, for a medium-length ~1000-token response. DeepSeek R1: 20.90 Wh, same ~1000-token baseline. Where we lack a same-model figure (Claude family, gpt-5-4, deepseek-v3/v4-flash), water is derived from energy (or vice versa) using the Wh:mL ratio observed in Google's comprehensive figure (0.24 Wh : 0.26 mL, i.e. mL = Wh x 1.0833), and cross-model scaling uses each model's output-token price relative to a same-family reference model as a rough compute-intensity proxy. All such derived figures are flagged in that model's `notes` field — treat as the weakest-confidence numbers in this file.",
       "baseline-note": "'Per-prompt' figures in both source studies are for a single response of a stated token length (600 tok for Google, 1000 tok for the URI study). We scale each source's own stated baseline linearly to a per-million-output-token rate rather than mixing baselines."
     },
-    "mediaModels": "Image/video generation has real vendor $/unit pricing but essentially no published water/energy data anywhere. Per the v3 design decision, each mediaModels entry converts its unit (1 image, 1 second of video) to an output-token equivalent, then reuses (`referenceModelId`) an existing text model's waterMlPerOutputMTok/energyWhPerOutputMTok — no new environmental constants invented for media. `tokenEquivalentSource` is 'vendor-tokenized' when the provider publishes a real image-token count (currently only OpenAI's gpt-image family does, via its documented per-quality output-token counts), or 'price-derived' when we imputed the token-equivalent by dividing the media unit's price by the reference model's outputPricePerMTok (used for Google's Imagen/Veo, which are billed as flat per-unit prices with no published tokenization) — price-derived entries are the lowest-confidence numbers in this file.",
+    "mediaModels": "Image/video generation has real vendor $/unit pricing; water/energy is a different problem per unit type. v3 borrowed an unrelated text model's per-token rate scaled by a token-equivalent — a proxy of a proxy, and inaccurate (a diffusion/video model's compute-per-'token' bears no real relationship to an autoregressive text model's). v4 replaces this: every mediaModels entry now carries its own `energyWhPerUnit`/`waterMlPerUnit` grounded in a dedicated per-image or per-second research measurement (see each entry's `sourceUrl`/`notes` — Bertazzini et al. 2506.17016 for image, the video-generation scaling-law paper 2607.04553 for video), not derived from any text model. `tokenEquivalentPerUnit`/`tokenEquivalentSource` are now display-only (the card's 'out-equiv tok' chip) and no longer feed the water/energy math. `inputPricePerMTok` is set only where the vendor actually bills prompt tokens separately (OpenAI's gpt-image family); Google's Imagen/Veo are flat per-unit prices with no separate input charge, so that field is omitted there rather than borrowing a text model's input rate and fabricating a cost Google doesn't bill.",
     "researchMode": "Deep Research modes (ChatGPT, Gemini, and to a lesser extent Claude's web-search/research mode) run many hidden tool calls (web searches, page fetches) before producing a final answer; only the final rendered text is visible to a content script. defaultMultiplier is applied to the visible response's effective output-token count before the normal cost/water/energy math runs, as a single rough proxy for that invisible work. Derived from a real published cost breakdown for Gemini Deep Research (see researchMode.sourceUrl): a standard task's total real cost (~$0.95 inference + ~$1.12-2.24 Search grounding, call it ~$2.5) divided by what our own calc() would compute from tokenizing just the visible ~60K-token final report at Gemini 3.1 Pro's normal output rate (~$0.72) gives ~3.5x; rounded to 4x. This is much lower than an earlier unverified 10-20x guess floated before this data was found — trust this number over that one. Applied identically across providers/sites for lack of anything more specific; OpenAI's Deep Research uses a different, cheaper search-tool cost structure so 4x may still be off in either direction for it."
   },
   "models": {
@@ -127,11 +127,15 @@
       "mediaType": "image",
       "unit": "image",
       "pricePerUnit": 0.0338,
+      "inputPricePerMTok": 5.00,
       "tokenEquivalentPerUnit": 1056,
       "tokenEquivalentSource": "vendor-tokenized",
-      "referenceModelId": "gpt-5",
-      "sourceUrl": "https://pricepertoken.com/gpt-image-pricing",
-      "notes": "OpenAI genuinely tokenizes generated images — 272/1056/4160 output tokens for low/medium/high quality at 1024x1024 on gpt-image-1.5 ($32/1M output tokens). This entry uses the medium-quality figure (1056 tok = $0.0338/image) as a representative default; real per-response quality varies. Water/energy borrowed from gpt-5's per-output-token rate (same provider infra) via referenceModelId — no image-specific environmental data exists. gpt-image-1 (the model originally scoped) is being retired 2026-10-23, so this uses its successor instead. Confidence: medium (real token count, borrowed environmental rate)."
+      "energyWhPerUnit": 3.0,
+      "waterMlPerUnit": 3.25,
+      "methodologyTag": "public-estimate",
+      "sourceUrl": "https://arxiv.org/abs/2506.17016",
+      "notes": "OpenAI genuinely tokenizes generated images — 272/1056/4160 output tokens for low/medium/high quality at 1024x1024 on gpt-image-1.5 ($32/1M output tokens); this entry uses the medium-quality figure (1056 tok = $0.0338/image). inputPricePerMTok ($5.00/1M text input tokens) is OpenAI's own published rate for this model, not borrowed from an unrelated text model as v3 did. energyWhPerUnit/waterMlPerUnit use Bertazzini et al. 2025/2026 (arXiv:2506.17016, 'The Hidden Cost of an Image'), a real GPU-metered study of 17 open text-to-image models: their 'standard quality' tier (~3 Wh/image, comparable modern diffusion/transformer models) is the closest available real analog — no OpenAI-specific figure is published. Water cross-derived from that Wh figure via Google's measured Wh:mL ratio (0.24 Wh : 0.26 mL). gpt-image-1 (the model originally scoped) was retired 2026-10-23, so this uses its successor instead. Confidence: medium (real, verified cost inputs), medium-low (energy/water — real measured study, but not this exact model).",
+      "verified": "pricing confirmed via web search 2026-08-30 ($0.0338/image output + $5.00/1M text input, both OpenAI's own published rates); energy/water switched from a borrowed-text-model derivation to Bertazzini et al.'s directly-measured image-generation study, confirmed via web search 2026-08-30."
     },
     "imagen-4-standard": {
       "provider": "Google",
@@ -141,21 +145,27 @@
       "pricePerUnit": 0.04,
       "tokenEquivalentPerUnit": 3333,
       "tokenEquivalentSource": "price-derived",
-      "referenceModelId": "gemini-3-1-pro",
-      "sourceUrl": "https://theplanettools.ai/blog/google-imagen-4-models-fast-standard-ultra-guide-2026",
-      "notes": "Google bills Imagen as a flat per-image price, not tokenized — no vendor-published token-equivalent exists. tokenEquivalentPerUnit is imputed: $0.04 / (gemini-3-1-pro's $12/MTok output rate) = 3333 tokens. Water/energy borrowed from gemini-3-1-pro's rate via referenceModelId, which is itself Google's real comprehensive-methodology figure — best-grounded entry in this section despite the price-derived token count. Confidence: medium-low (real environmental basis, imputed token count)."
+      "energyWhPerUnit": 3.0,
+      "waterMlPerUnit": 3.25,
+      "methodologyTag": "public-estimate",
+      "sourceUrl": "https://arxiv.org/abs/2506.17016",
+      "notes": "Google bills Imagen as a flat per-image price ($0.02/0.04/0.06 for Fast/Standard/Ultra), not tokenized and with no separate input-token charge — inputPricePerMTok is intentionally omitted (defaults to 0) rather than fabricating a cost Google doesn't bill. tokenEquivalentPerUnit is display-only now: $0.04 / gemini-3-1-pro's $12/MTok output rate = 3333, shown in the card's token-equivalent chip but no longer used for water/energy math. energyWhPerUnit/waterMlPerUnit use the same Bertazzini et al. real-measured-image-generation basis as gpt-image-1-5 (see that entry's notes) — no Imagen-specific figure is published by Google, so this is the best available real analog rather than an unrelated text model's rate. Confidence: low-medium.",
+      "verified": "pricing confirmed via web search 2026-08-30 (unchanged, $0.04/image standard tier); energy/water switched from borrowed gemini-3-1-pro text rate to Bertazzini et al.'s directly-measured image-generation study, confirmed via web search 2026-08-30."
     },
     "veo-3-1-fast": {
       "provider": "Google",
       "displayName": "Veo 3.1 (Fast)",
       "mediaType": "video",
       "unit": "second",
-      "pricePerUnit": 0.12,
-      "tokenEquivalentPerUnit": 10000,
+      "pricePerUnit": 0.15,
+      "tokenEquivalentPerUnit": 12500,
       "tokenEquivalentSource": "price-derived",
-      "referenceModelId": "gemini-3-1-pro",
-      "sourceUrl": "https://www.veo3ai.io/blog/veo-3-1-pricing-2026",
-      "notes": "Google bills Veo per second of output, not tokenized. tokenEquivalentPerUnit imputed the same way as imagen-4-standard: $0.12/sec (Fast tier midpoint of the $0.10-0.15 range; Lite is cheaper, Quality much pricier, audio adds more) / gemini-3-1-pro's output rate = 10000 tokens/sec. Each Veo generation caps at 8 seconds — a 9s+ video needs multiple generations, not modeled (adapter should multiply by clip count if detectable, otherwise treat one detected video as one 8s-or-shorter clip). Confidence: low (both price tier and token-equivalent are imputed/representative, not measured)."
+      "energyWhPerUnit": 3.85,
+      "waterMlPerUnit": 4.17,
+      "methodologyTag": "public-estimate",
+      "sourceUrl": "https://arxiv.org/abs/2607.04553",
+      "notes": "Google bills Veo per second, flat, no separate input-token charge (inputPricePerMTok omitted, same reasoning as imagen-4-standard). pricePerUnit corrected to $0.15/sec (Google's own current Gemini API rate for Veo 3.1 Fast at 720p/1080p — v3's $0.12 was a stale blog estimate); tokenEquivalentPerUnit is display-only, recomputed to match ($0.15 / gemini-3-1-pro's $12/MTok = 12500). energyWhPerUnit/waterMlPerUnit use 'Lights, Camera, Carbon: Architectural Scaling Laws for Video Generation Energy Consumption' (arXiv:2607.04553), which estimates Veo 3 (not 3.1, but same family — closest available) at 19.8-43.4 Wh (mean 30.8 Wh) per 8-second 720p clip via an architectural scaling-law fit to real API latency, not direct GPU metering. 30.8 Wh / 8s = 3.85 Wh/sec; water cross-derived via Google's measured Wh:mL ratio. This replaces v3's coincidentally-similar but methodologically-unfounded borrowed-text-model number with a real, Veo-targeted academic estimate. Each Veo generation caps at 8 seconds — a 9s+ video needs multiple generations; this per-second rate still applies linearly, matching Google's own per-second billing. Confidence: medium (real, model-targeted estimate; API-latency-based, not direct measurement, and Veo 3 not 3.1 specifically).",
+      "verified": "pricing corrected via web search 2026-08-30 (Google's Gemini API pricing page: $0.15/sec, not v3's $0.12 estimate); energy/water switched from borrowed gemini-3-1-pro text rate to a Veo-3-targeted academic estimate, confirmed via web search 2026-08-30."
     }
   },
   "researchMode": {

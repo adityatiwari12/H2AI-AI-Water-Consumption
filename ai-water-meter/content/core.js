@@ -29,21 +29,27 @@
     sourceUrl: "https://cloud.google.com/blog/products/infrastructure/measuring-the-environmental-impact-of-ai-inference",
   };
 
-  // Media (image/video) generation has no per-token concept of its own —
-  // each mediaModels entry converts its unit (1 image, 1 second of video) to
-  // an output-token equivalent and borrows an existing text model's water/
-  // energy rate via referenceModelId. See content/models.config.json's
-  // _meta.waterEnergyMethodology.mediaModels for the full explanation.
+  // Media (image/video) generation has no per-token concept of its own.
+  // Each mediaModels entry carries its own real-study-grounded
+  // energyWhPerUnit/waterMlPerUnit (1 image, or 1 second of video) — no
+  // longer borrowed through an unrelated text model's per-token rate (v3
+  // did that; see content/models.config.json's
+  // _meta.waterEnergyMethodology.mediaModels for why that was replaced).
+  // tokenEquivalentPerUnit is display-only now (the card's "out-equiv tok"
+  // chip) and no longer feeds the water/energy math.
   const FALLBACK_MEDIA_MODEL = {
     provider: "unknown",
     displayName: "Unknown media model",
     mediaType: "image",
     unit: "image",
     pricePerUnit: 0.04,
+    inputPricePerMTok: 0,
     tokenEquivalentPerUnit: 3000,
     tokenEquivalentSource: "price-derived",
-    referenceModelId: "fallback",
-    sourceUrl: "https://cloud.google.com/blog/products/infrastructure/measuring-the-environmental-impact-of-ai-inference",
+    energyWhPerUnit: 3.0,
+    waterMlPerUnit: 3.25,
+    methodologyTag: "public-estimate",
+    sourceUrl: "https://arxiv.org/abs/2506.17016",
   };
 
   // Deep-Research-style modes run many hidden tool calls before producing a
@@ -104,15 +110,24 @@
       const media = lookupMediaModel(options.mediaModelId);
       const resolvedModelId = MEDIA_MODELS[options.mediaModelId] ? options.mediaModelId : "fallback-media";
       const unitCount = options.unitCount || 1;
-      const refModel = lookupModel(media.referenceModelId);
-      const outTokens = media.tokenEquivalentPerUnit * unitCount; // token-equivalent, not real generation tokens
+      const outTokens = media.tokenEquivalentPerUnit * unitCount; // display-only token-equivalent, not real generation tokens
 
-      const costInUsd = (inTokens / 1e6) * refModel.inputPricePerMTok;
+      // Only OpenAI's image models bill prompt/input tokens as a separate
+      // line item (media.inputPricePerMTok, sourced per-model). Google's
+      // Imagen/Veo are flat per-unit prices with no separate input charge —
+      // those entries omit inputPricePerMTok (defaults to 0) rather than
+      // borrowing an unrelated text model's input rate, which would
+      // fabricate a cost Google doesn't actually bill.
+      const costInUsd = (inTokens / 1e6) * (media.inputPricePerMTok || 0);
       const costOutUsd = media.pricePerUnit * unitCount; // real vendor price, not token-derived
       const costUsd = costInUsd + costOutUsd;
 
-      const energyWh = (outTokens / 1e6) * refModel.energyWhPerOutputMTok;
-      const waterMl = (outTokens / 1e6) * refModel.waterMlPerOutputMTok;
+      // energyWhPerUnit/waterMlPerUnit are real per-image or per-second
+      // figures from a dedicated study (see each entry's sourceUrl/notes in
+      // models.config.json), not derived from any text model's per-token
+      // rate.
+      const energyWh = (media.energyWhPerUnit || 0) * unitCount;
+      const waterMl = (media.waterMlPerUnit || 0) * unitCount;
 
       return {
         modelId: resolvedModelId,
@@ -122,7 +137,6 @@
         unit: media.unit,
         unitCount,
         tokenEquivalentSource: media.tokenEquivalentSource,
-        referenceModelDisplayName: refModel.displayName,
         inTokens,
         outTokens,
         costInUsd,
@@ -130,7 +144,7 @@
         costUsd,
         energyWh,
         waterMl,
-        methodologyTag: refModel.methodologyTag,
+        methodologyTag: media.methodologyTag,
         sourceUrl: media.sourceUrl,
       };
     }
@@ -341,11 +355,7 @@
 
     if (calcResult.contentType === "image" || calcResult.contentType === "video") {
       const unitLabel = calcResult.unitCount > 1 ? `${calcResult.unitCount} ${calcResult.unit}s` : `1 ${calcResult.unit}`;
-      const equivSource =
-        calcResult.tokenEquivalentSource === "vendor-tokenized"
-          ? "the provider's own published output-token count for this unit"
-          : "imputed by dividing this unit's real price by a comparable text model's per-token rate (no vendor token count is published for this media)";
-      return `${calcResult.modelDisplayName}: priced for ${unitLabel} at this vendor's real rate. Water/energy has no direct data for image/video generation, so it's estimated via a token-equivalent (${equivSource}) scaled by ${calcResult.referenceModelDisplayName}'s ${methodologyLabel} rate.`;
+      return `${calcResult.modelDisplayName}: priced for ${unitLabel} at this vendor's real rate. No AI provider discloses real water/energy figures for image or video generation, so water/energy uses a dedicated per-unit research measurement for this media type (${methodologyLabel}) — not borrowed from a text model's per-token rate.`;
     }
 
     if (calcResult.contentType === "research") {
