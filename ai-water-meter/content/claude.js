@@ -2,13 +2,15 @@
   const SITE = "claude";
   const DEFAULT_MODEL = "claude-sonnet-5";
 
-  // Claude.ai's DOM changes fairly often between releases. We try a couple
-  // of known-ish selectors first, then fall back to a generic heuristic.
-  // If the card stops appearing after a Claude UI update, inspect a
-  // response element in devtools and update ASSISTANT_SELECTOR below.
-  const ASSISTANT_SELECTOR =
-    '[data-testid="conversation-turn"] .font-claude-message, [data-testid="conversation-turn"][data-is-streaming="false"]';
-  const USER_SELECTOR = '[data-testid="conversation-turn"] [data-testid="user-message"]';
+  // Claude.ai's DOM changes fairly often between releases. Verified live
+  // 2026-09-05: turns are `[data-testid="transcript-row"]` with
+  // `data-perf-row="assistant"|"user"` giving role directly; assistant text
+  // lives in a `.font-claude-response` div, user text in
+  // `[data-testid="user-message"]`. If the card stops appearing after a
+  // Claude UI update, inspect a response element in devtools and update
+  // these selectors.
+  const ASSISTANT_SELECTOR = '[data-testid="transcript-row"][data-perf-row="assistant"] .font-claude-response';
+  const USER_SELECTOR = '[data-testid="transcript-row"][data-perf-row="user"] [data-testid="user-message"]';
 
   // BEST-EFFORT model detection: Claude's model picker is normally a button
   // near the composer showing text like "Claude Sonnet 5" or "Opus 4.8".
@@ -58,9 +60,9 @@
   }
 
   function getLastUserPromptBefore(el) {
-    const turns = document.querySelectorAll('[data-testid="conversation-turn"]');
+    const turns = document.querySelectorAll('[data-testid="transcript-row"]');
     let promptText = "";
-    const targetTurn = el.closest('[data-testid="conversation-turn"]');
+    const targetTurn = el.closest('[data-testid="transcript-row"]');
     for (const turn of turns) {
       if (turn === targetTurn) break;
       const userMsg = turn.querySelector('[data-testid="user-message"]');
@@ -71,7 +73,7 @@
 
   async function handleFinishedMessage(el) {
     if (processed.has(el)) return;
-    const turn = el.closest('[data-testid="conversation-turn"]') || el;
+    const turn = el.closest('[data-testid="transcript-row"]') || el;
     if (processed.has(turn)) return;
     // If the extension was reloaded/updated in chrome://extensions since
     // this page loaded, this content script instance is orphaned and any
@@ -127,7 +129,7 @@
         findAssistantEls(node).forEach((el) => scheduleCheck(el));
       });
       if (m.target instanceof HTMLElement) {
-        findAssistantEls(m.target.closest('[data-testid="conversation-turn"]') || m.target).forEach(
+        findAssistantEls(m.target.closest('[data-testid="transcript-row"]') || m.target).forEach(
           (el) => scheduleCheck(el)
         );
       }
