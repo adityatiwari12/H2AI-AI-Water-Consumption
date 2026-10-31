@@ -341,6 +341,17 @@ body {
   background: #e2ecff;
 }
 
+/* Reset button -- warning/confirm state */
+
+.awm-reset-confirm {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.awm-reset-confirm:hover {
+  background: #b91c1c;
+}
+
 .awm-popup-footnote {
   margin-top: 12px;
   font-size: 10.5px;

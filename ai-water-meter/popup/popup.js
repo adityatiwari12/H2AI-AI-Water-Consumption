@@ -137,12 +137,37 @@ document.getElementById("breakdownTabs").addEventListener("click", (e) => {
   setActiveTab(btn.dataset.tab);
 });
 
-document.getElementById("resetBtn").addEventListener("click", async () => {
-  const all = await chrome.storage.local.get(null);
-  const toRemove = Object.keys(all).filter((k) => k.startsWith("awm_"));
-  await chrome.storage.local.remove(toRemove);
-  render();
-});
+(function () {
+  const btn = document.getElementById("resetBtn");
+  const originalHTML = btn.innerHTML;
+  let confirmTimeout = null;
+  let awaitingConfirm = false;
+
+  function revertBtn() {
+    awaitingConfirm = false;
+    clearTimeout(confirmTimeout);
+    confirmTimeout = null;
+    btn.innerHTML = originalHTML;
+    btn.classList.remove("awm-reset-confirm");
+  }
+
+  btn.addEventListener("click", async () => {
+    if (!awaitingConfirm) {
+      // First click: enter warning state
+      awaitingConfirm = true;
+      btn.textContent = "Confirm reset?";
+      btn.classList.add("awm-reset-confirm");
+      confirmTimeout = setTimeout(revertBtn, 5000);
+    } else {
+      // Second click within 5s: perform reset
+      revertBtn();
+      const all = await chrome.storage.local.get(null);
+      const toRemove = Object.keys(all).filter((k) => k.startsWith("awm_"));
+      await chrome.storage.local.remove(toRemove);
+      render();
+    }
+  });
+}());
 
 setActiveTab("site");
 render();
