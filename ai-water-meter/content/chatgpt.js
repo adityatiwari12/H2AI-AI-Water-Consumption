@@ -41,7 +41,7 @@
     // Generated images are served from OpenAI's own CDN domain regardless of
     // whatever alt text/DOM wrapper the current UI build uses — a more
     // stable signal than alt text alone, which this also still checks.
-    imageSelector: 'img[alt]:not([alt=""]), img[src*="oaiusercontent" i]',
+    imageSelector: 'img[src*="oaiusercontent" i], img[src*="files.oaiusercontent" i], img[alt]:not([alt=""])',
     artifactSelector: '[data-testid*="canvas" i], #canvas-panel, [id*="canvas" i]',
     researchSelector: '[data-testid*="research" i], [class*="deep-research" i]',
   };
