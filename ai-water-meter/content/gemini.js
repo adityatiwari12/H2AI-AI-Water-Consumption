@@ -138,7 +138,8 @@
         findAssistantEls(node).forEach((el) => scheduleCheck(el));
       });
       if (m.target instanceof HTMLElement) {
-        findAssistantEls(m.target).forEach((el) => scheduleCheck(el));
+        const ancestor = m.target.closest?.(ASSISTANT_SELECTOR) || m.target;
+        findAssistantEls(ancestor).forEach((el) => scheduleCheck(el));
       }
     }
   });
