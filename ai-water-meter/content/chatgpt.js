@@ -5,20 +5,17 @@
 
   // BEST-EFFORT model detection: ChatGPT's model-switcher button usually
   // shows the active model's short label somewhere near the top of the
-  // composer (e.g. a button with text like "ChatGPT 5" or "GPT-5.4"). The
-  // exact selector changes across releases — we try a couple of known-ish
-  // attribute patterns, then fall back to scanning header buttons for
-  // recognizable model text. If detection stops working, inspect the model
-  // switcher in devtools and update MODEL_PICKER_SELECTORS below.
+  // composer (e.g. a button with text like "ChatGPT 5" or "GPT-5.4").
   const MODEL_PICKER_SELECTORS = [
     '[data-testid="model-switcher-dropdown-button"]',
     'button[aria-label*="Model" i]',
     '[data-testid*="model-switcher"]',
+    'button[id*="model" i]',
   ];
 
   const MODEL_PATTERNS = [
     [/5\.4/i, "gpt-5-4"],
-    [/\b5\b/i, "gpt-5"],
+    [/5/i, "gpt-5"],
   ];
 
   function detectModel() {
@@ -31,49 +28,71 @@
     return { modelId: DEFAULT_MODEL, detected: false };
   }
 
-  // BEST-EFFORT content-type detection: none of these selectors have been
-  // checked against a live page. ChatGPT-generated images typically render
-  // as an <img> with descriptive alt text inside the assistant turn; Canvas
-  // opens a distinct side-panel container; Deep Research responses show a
-  // sources/steps panel. If any of these never fire, inspect a real example
-  // of that feature in devtools and correct the selector here.
+  // CONTENT DETECTORS: Generated images, canvas, research
   const CONTENT_DETECTORS = {
-    // Generated images are served from OpenAI's own CDN domain regardless of
-    // whatever alt text/DOM wrapper the current UI build uses — a more
-    // stable signal than alt text alone, which this also still checks.
     imageSelector: 'img[src*="oaiusercontent" i], img[src*="files.oaiusercontent" i], img[alt]:not([alt=""])',
-    artifactSelector: '[data-testid*="canvas" i], #canvas-panel, [id*="canvas" i]',
-    researchSelector: '[data-testid*="research" i], [class*="deep-research" i]',
+    artifactSelector: '[data-testid*="canvas" i], #canvas-panel, [id*="canvas" i], [class*="writing-block" i]',
+    researchSelector: '[data-testid*="research" i], [class*="deep-research" i], [class*="thinking" i]',
   };
 
   const processed = new WeakSet();
   const debounceTimers = new WeakMap();
 
-  function getLastUserPromptBefore(el) {
-    const allTurns = document.querySelectorAll(
-      '[data-message-author-role="user"], [data-message-author-role="assistant"]'
-    );
-    let promptText = "";
-    for (const turn of allTurns) {
-      if (turn === el) break;
-      if (turn.getAttribute("data-message-author-role") === "user") {
-        promptText = turn.innerText || "";
+  // Supports both modern ChatGPT (data-chatgpt-agent-turn-start) and legacy/fixtures (data-message-author-role="assistant")
+  function findAssistantEls(root) {
+    const results = [];
+    if (!root || !(root instanceof HTMLElement)) return results;
+
+    // 1. Check for legacy/fixture [data-message-author-role="assistant"]
+    if (root.matches?.('[data-message-author-role="assistant"]')) {
+      results.push(root);
+    }
+    const legacy = root.querySelectorAll?.('[data-message-author-role="assistant"]') || [];
+    for (const el of legacy) {
+      if (!results.includes(el)) results.push(el);
+    }
+
+    // 2. Check for modern OpenAI [data-chatgpt-agent-turn-start]
+    const markers = [];
+    if (root.matches?.('[data-chatgpt-agent-turn-start]')) {
+      markers.push(root);
+    }
+    const modern = root.querySelectorAll?.('[data-chatgpt-agent-turn-start]') || [];
+    for (const m of modern) {
+      markers.push(m);
+    }
+    for (const m of markers) {
+      const container = m.closest?.('[class*="block-"]') || m.parentElement || m;
+      if (!results.includes(container)) {
+        results.push(container);
       }
     }
-    return promptText;
+
+    return results;
+  }
+
+  const USER_SELECTORS = '[data-message-author-role="user"], [data-user-message-bubble="true"], [class*="user-message"]';
+
+  function getLastUserPromptBefore(el) {
+    const allUsers = document.querySelectorAll(USER_SELECTORS);
+    let promptText = "";
+    for (const u of allUsers) {
+      if (u.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_PRECEDING) break;
+      promptText = u.innerText || "";
+    }
+    return promptText.replace(/^You said:\s*/i, "").trim();
   }
 
   async function handleFinishedMessage(el) {
     if (processed.has(el)) return;
-    // If the extension was reloaded/updated in chrome://extensions since
-    // this page loaded, this content script instance is orphaned and any
-    // chrome.* call below throws "Extension context invalidated" — bail
-    // quietly rather than spamming the console (a page refresh fixes it).
     if (!chrome.runtime?.id) return;
     processed.add(el);
 
     try {
-      const rawText = el.innerText || "";
+      let rawText = el.innerText || "";
+      // Strip accessible prefix "ChatGPT said:" if present
+      rawText = rawText.replace(/^ChatGPT said:\s*/i, "").trim();
+
       const promptText = getLastUserPromptBefore(el);
       const { modelId, detected } = detectModel();
       const { contentType, artifactEl } = window.AIWaterMeter.detectContentType(el, CONTENT_DETECTORS);
@@ -89,10 +108,6 @@
       } else {
         const responseText = contentType === "artifact" && artifactEl ? `${rawText}\n${artifactEl.innerText || ""}` : rawText;
         if (!responseText.trim()) {
-          // Debounce fired before innerText caught up to the final paint —
-          // not a real "empty response". Un-mark so a later mutation (the
-          // text actually landing) gets a real retry instead of a
-          // permanent, silent skip.
           processed.delete(el);
           return;
         }
@@ -106,19 +121,17 @@
         modelDetected: detected,
       });
 
-      // Insert after the assistant turn's outer article container if possible.
-      const container = el.closest("article") || el;
+      // Insert after the assistant turn's outer container
+      const container = el.closest('article, [class*="block-"], [data-talvt-turn-state], [data-turn-key]') || el;
       container.insertAdjacentElement("afterend", card);
     } catch (err) {
       if (!chrome.runtime?.id || String(err?.message || err).includes("Extension context invalidated")) return;
       console.error("[AI Water Meter]", err);
-      processed.delete(el); // transient failure — allow a retry on the next mutation rather than blacklisting this response forever
+      processed.delete(el);
     }
   }
 
   function scheduleCheck(el) {
-    // Debounce: wait for the DOM to stop changing (streaming finished) before
-    // reading final text. Reset the timer on every mutation inside the turn.
     if (debounceTimers.has(el)) clearTimeout(debounceTimers.get(el));
     const timer = setTimeout(() => handleFinishedMessage(el), 1200);
     debounceTimers.set(el, timer);
@@ -128,23 +141,17 @@
     for (const m of mutations) {
       m.addedNodes.forEach((node) => {
         if (!(node instanceof HTMLElement)) return;
-        const candidates = node.matches?.('[data-message-author-role="assistant"]')
-          ? [node]
-          : Array.from(node.querySelectorAll?.('[data-message-author-role="assistant"]') || []);
-        candidates.forEach((el) => scheduleCheck(el));
+        findAssistantEls(node).forEach((el) => scheduleCheck(el));
       });
-      // also catch text mutations inside an already-inserted assistant turn
       if (m.target instanceof HTMLElement) {
-        const turn = m.target.closest?.('[data-message-author-role="assistant"]');
-        if (turn && !processed.has(turn)) scheduleCheck(turn);
+        const ancestor = m.target.closest?.('[data-message-author-role="assistant"], [class*="block-"], [data-talvt-turn-state], [data-turn-key]') || m.target;
+        findAssistantEls(ancestor).forEach((el) => scheduleCheck(el));
       }
     }
   });
 
   rootObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
 
-  // catch anything already on the page at load
-  document
-    .querySelectorAll('[data-message-author-role="assistant"]')
-    .forEach((el) => scheduleCheck(el));
+  // Initial check on page load
+  findAssistantEls(document.body).forEach((el) => scheduleCheck(el));
 })();
