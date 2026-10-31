@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "H2AI - AI water consumption",
   "version": "2.0.0",
-  "description": "H2AI by tokenistt — free, open-source estimated water & cost footprint under every ChatGPT, Claude, Gemini, and DeepSeek response. (www.tokenistt.com)",
+  "description": "H2AI by tokenistt — free, open-source AI environmental impact meter: estimated water, energy, carbon, and cost under every ChatGPT, Claude, Gemini, and DeepSeek response. (www.tokenistt.com)",
   "homepage_url": "https://www.tokenistt.com",
   "permissions": ["storage"],
   "host_permissions": [

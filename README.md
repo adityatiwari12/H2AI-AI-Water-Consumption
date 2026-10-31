@@ -3,7 +3,7 @@
 
 # H2AI
 
-**See what every AI prompt actually costs — water, energy, tokens, and cash — right under the response.**
+**An AI environmental impact meter — water, energy, carbon, tokens, and cash, right under every response.**
 
 Free, open-source Chrome extension by [tokenistt](https://www.tokenistt.com).
 
@@ -23,13 +23,15 @@ Free, open-source Chrome extension by [tokenistt](https://www.tokenistt.com).
 <br/><sub>The real card, live under a real ChatGPT response — not a mockup.</sub>
 </div>
 
-Shows a small dark "receipt" card under every ChatGPT, Claude, Gemini, and
-DeepSeek response, with an animated glass → bucket → drum icon estimating
-water used and cost, plus a running session/lifetime total (popup). The
-card also breaks out input/output tokens, input/output cost, and energy,
-and detects which model produced the response where the page's DOM allows.
-Beyond plain text, it also estimates image generation, video generation,
-Canvas/Artifact responses, and Deep-Research-style answers — see
+Shows a small dark "AI Impact" receipt card under every ChatGPT, Claude,
+Gemini, and DeepSeek response, with an animated glass → bucket → drum icon
+estimating water used — H2AI's signature metric — plus a running
+session/lifetime total (popup). The card also breaks out input/output
+tokens, input/output cost, energy, and carbon (CO₂e, derived from the
+energy estimate), and detects which model produced the response where the
+page's DOM allows. Beyond plain text, it also estimates image generation,
+video generation, Canvas/Artifact responses, and Deep-Research-style
+answers — see
 [Beyond text: image, video, canvas, and research](#beyond-text-image-video-canvas-and-research) below.
 
 | | |
@@ -42,26 +44,44 @@ Canvas/Artifact responses, and Deep-Research-style answers — see
 
 > [!WARNING]
 > **These numbers are estimates, not real data.** No AI provider publishes
-> real, per-query water or energy figures for every model. Numbers come from
+> real, per-query water, energy, or carbon figures for every model. Numbers
+> come from
 > [`ai-water-meter/content/models.config.json`](ai-water-meter/content/models.config.json)
 > — a mix of Google's own disclosed comprehensive methodology (Gemini only)
 > and derived/scaled estimates for everyone else. Every model entry carries a
 > `methodologyTag` and `sourceUrl`; the card's (i) tooltip states which basis
-> is in play and links to the source. If you plan to publish or promote this
-> extension, keep that disclosure — presenting any of this as exact data
-> would be misleading.
+> is in play and links to the source. Carbon is weaker still — it's always a
+> straight derivation of the energy estimate via one global average grid
+> carbon intensity (`carbonIntensity`, sourced from IEA), never an
+> independently measured figure of its own; see
+> [Water, energy & carbon estimate basis](#water-energy--carbon-estimate-basis)
+> below. If you plan to publish or promote this extension, keep that
+> disclosure — presenting any of this as exact data would be misleading.
 >
 > See that file's `_meta.waterEnergyMethodology` block and each model's
 > `notes` field for exactly how each number was sourced or derived, and
 > `ai-water-meter-v2-prd.md` for the full research writeup.
 
-## Water estimate basis
+## Water, energy & carbon estimate basis
 
 Every card shows each model's own best-sourced `models.config.json` figure
 — Google's disclosed comprehensive methodology for Gemini, derived/scaled
 estimates for everyone else (see each model's `notes` field and the card's
 (i) tooltip for sourcing). There is no separate "playful" flat-rate mode;
 what you see is what accumulates into the session/lifetime totals.
+
+Carbon (CO₂e) is not a separately sourced number — no AI provider discloses
+which grid or datacenter actually served a given request, so there's no
+honest per-model or per-provider carbon figure to plug in. Instead, every
+response's carbon is derived from its already-estimated `energyWh` using one
+global average grid carbon intensity figure —
+[`models.config.json`'s `carbonIntensity`](ai-water-meter/content/models.config.json)
+block, currently 445 g CO₂e/kWh (IEA's *Electricity 2025* report, the latest
+full-year global actual) — applied uniformly across every model, provider,
+and site. This is the same honesty posture as `researchMode`'s multiplier:
+one documented, sourced constant applied evenly for lack of anything more
+specific, not a per-model measurement. Carbon's confidence can never exceed
+the energy figure it's derived from.
 
 ## Beyond text: image, video, canvas, and research
 
@@ -114,7 +134,7 @@ feature, not by inspecting a live page.
 
 ## Table of contents
 
-- [Water estimate basis](#water-estimate-basis)
+- [Water, energy & carbon estimate basis](#water-energy--carbon-estimate-basis)
 - [Beyond text: image, video, canvas, and research](#beyond-text-image-video-canvas-and-research)
 - [Repository layout](#repository-layout)
 - [Architecture](#architecture)
@@ -298,19 +318,20 @@ before cost/water/energy math. Returns:
 { modelId, modelDisplayName, provider, contentType, researchMultiplier,
   inTokens, outTokens,               // outTokens is the *unmultiplied*, visible count
   costInUsd, costOutUsd, costUsd,
-  energyWh, waterMl,
+  energyWh, waterMl, carbonG,        // carbonG = (energyWh / 1000) * carbonIntensity.gCo2ePerKwh
   methodologyTag, sourceUrl }
 ```
 
 **Image / video branch** — no token estimation on `responseText` at all;
 everything is unit-based. `outTokens` is `tokenEquivalentPerUnit *
-unitCount` (display-only, does not feed cost/water/energy). `costOutUsd` is
-the vendor's real `pricePerUnit * unitCount`; `costInUsd` is `0` unless the
-model bills prompt tokens separately (`inputPricePerMTok`, OpenAI's image
-models only). `energyWh`/`waterMl` are `energyWhPerUnit`/`waterMlPerUnit *
-unitCount` from a dedicated research source, never derived from a text
-model's per-token rate. Returns the same shape plus `unit`, `unitCount`,
-`tokenEquivalentSource`.
+unitCount` (display-only, does not feed cost/water/energy/carbon).
+`costOutUsd` is the vendor's real `pricePerUnit * unitCount`; `costInUsd` is
+`0` unless the model bills prompt tokens separately (`inputPricePerMTok`,
+OpenAI's image models only). `energyWh`/`waterMl` are
+`energyWhPerUnit`/`waterMlPerUnit * unitCount` from a dedicated research
+source, never derived from a text model's per-token rate; `carbonG` is
+derived from that `energyWh` the same uniform way as the text branch.
+Returns the same shape plus `unit`, `unitCount`, `tokenEquivalentSource`.
 
 </details>
 
@@ -363,6 +384,10 @@ text models** and **3 media models**.
   "researchMode": {
     "defaultMultiplier": 4,              // applied to visible output tokens for contentType: "research"
     "sourceUrl": "https://…", "notes": "…"
+  },
+  "carbonIntensity": {
+    "gCo2ePerKwh": 445,                  // global average grid carbon intensity; carbonG = energyWh/1000 * this
+    "sourceUrl": "https://…", "notes": "…", "verified": "…"
   }
 }
 ```
@@ -390,11 +415,11 @@ popup's "Reset all stats" button can wipe them in one pass):
 | `awm_lifetime_model_<modelId>` | All-time totals, per model (spans sites for a shared model id) |
 
 Each total object has the same shape (`core.js`'s `EMPTY_TOTAL`):
-`{ waterMl, costUsd, costInUsd, costOutUsd, energyWh, inTokens, outTokens,
-count }` — `addTotal()` sums a new `calcResult` into all three keys on every
-response (see step 6 above), and the per-model key additionally carries
-`displayName`/`provider` for the popup's model tab to render without a
-second lookup.
+`{ waterMl, costUsd, costInUsd, costOutUsd, energyWh, carbonG, inTokens,
+outTokens, count }` — `addTotal()` sums a new `calcResult` into all three
+keys on every response (see step 6 above), and the per-model key
+additionally carries `displayName`/`provider` for the popup's model tab to
+render without a second lookup.
 
 ### Card anatomy
 
@@ -414,10 +439,13 @@ inserted right after the message turn:
   response's water ÷ its icon's full capacity) via a `requestAnimationFrame`
   and a 60ms-delayed CSS transition, purely a display effect independent of
   the underlying numbers.
-- **Header** — "Water Used" title, an (i) info icon whose tooltip text is
-  built by `buildTooltipText()` (varies by content type — media, research,
-  or plain text wording, always naming the `methodologyTag` and linking
-  `sourceUrl`), and the ↗ button that opens the standalone analysis window.
+- **Header** — "AI Impact" title (water stays the headline stat below — the
+  title just reflects that the card covers the full footprint, not water
+  alone), an (i) info icon whose tooltip text is built by
+  `buildTooltipText()` (varies by content type — media, research, or plain
+  text wording, always naming the `methodologyTag`/`sourceUrl` and a
+  standing clause on how carbon is derived from energy), and the ↗ button
+  that opens the standalone analysis window.
 - **Model row** — `modelDisplayName`, a content-type badge (`canvas/artifact`
   / `image` / `video` / `research ×N`, omitted for plain text), and an
   "estimated model" badge when `detectModel()` didn't find a match on the
@@ -425,9 +453,10 @@ inserted right after the message turn:
 - **Main stat** — the response's water in mL or L (`fmtMl()`), plus an
   animated horizontal bar at the same fill percentage as the icon.
 - **Chip rows** — `{in} in · {out} {out-equiv|out} tok` alongside energy
-  (`fmtWh()`); cost split into `{in} in + {out} out` (`fmtUsd()`); and a
-  muted row with the running **session** total (`{water} / {cost} this
-  session ({count})`) for quick context without opening the popup.
+  (`fmtWh()`) and carbon (`fmtCarbon()`, g or kg CO₂e); cost split into
+  `{in} in + {out} out` (`fmtUsd()`); and a muted row with the running
+  **session** total (`{water} / {cost} this session ({count})`) for quick
+  context without opening the popup.
 
 </details>
 

@@ -161,16 +161,21 @@ body {
 
 .awm-popup-statrow {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 10px;
 }
 
 .awm-popup-stat {
-  flex: 1;
+  flex: 1 1 calc(50% - 5px);
   background: #ffffff;
   border: 1px solid #e7ebf2;
   border-radius: 16px;
   padding: 12px 14px;
+}
+
+.awm-popup-stat--wide {
+  flex-basis: 100%;
 }
 
 .awm-popup-stat-icon {
