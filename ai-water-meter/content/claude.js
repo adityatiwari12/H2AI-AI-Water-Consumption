@@ -9,8 +9,9 @@
   // `[data-testid="user-message"]`. If the card stops appearing after a
   // Claude UI update, inspect a response element in devtools and update
   // these selectors.
-  const ASSISTANT_SELECTOR = '[data-testid="transcript-row"][data-perf-row="assistant"] .font-claude-response';
-  const USER_SELECTOR = '[data-testid="transcript-row"][data-perf-row="user"] [data-testid="user-message"]';
+  const TURN_SELECTOR = '[data-testid="transcript-row"], [data-testid="conversation-turn"]';
+  const ASSISTANT_SELECTOR = '[data-testid="transcript-row"][data-perf-row="assistant"] .font-claude-response, [data-testid="conversation-turn"] .font-claude-message, [data-testid="conversation-turn"][data-is-streaming="false"]';
+  const USER_SELECTOR = '[data-testid="transcript-row"][data-perf-row="user"] [data-testid="user-message"], [data-testid="conversation-turn"] [data-testid="user-message"]';
 
   // BEST-EFFORT model detection: Claude's model picker is normally a button
   // near the composer showing text like "Claude Sonnet 5" or "Opus 4.8".
@@ -60,9 +61,9 @@
   }
 
   function getLastUserPromptBefore(el) {
-    const turns = document.querySelectorAll('[data-testid="transcript-row"]');
+    const turns = document.querySelectorAll(TURN_SELECTOR);
     let promptText = "";
-    const targetTurn = el.closest('[data-testid="transcript-row"]');
+    const targetTurn = el.closest(TURN_SELECTOR);
     for (const turn of turns) {
       if (turn === targetTurn) break;
       const userMsg = turn.querySelector('[data-testid="user-message"]');
@@ -73,7 +74,7 @@
 
   async function handleFinishedMessage(el) {
     if (processed.has(el)) return;
-    const turn = el.closest('[data-testid="transcript-row"]') || el;
+    const turn = el.closest(TURN_SELECTOR) || el;
     if (processed.has(turn)) return;
     // If the extension was reloaded/updated in chrome://extensions since
     // this page loaded, this content script instance is orphaned and any
@@ -129,7 +130,7 @@
         findAssistantEls(node).forEach((el) => scheduleCheck(el));
       });
       if (m.target instanceof HTMLElement) {
-        findAssistantEls(m.target.closest('[data-testid="transcript-row"]') || m.target).forEach(
+        findAssistantEls(m.target.closest(TURN_SELECTOR) || m.target).forEach(
           (el) => scheduleCheck(el)
         );
       }
