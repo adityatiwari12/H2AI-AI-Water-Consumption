@@ -1,11 +1,9 @@
 (function () {
   const SITE = "deepseek";
-  // NOTE: DeepSeek has scheduled the V3-era API models (deepseek-chat /
-  // deepseek-reasoner) for deprecation on 2026-07-24 — if the default below
-  // stops matching what deepseek.com actually serves after that date, switch
-  // it to "deepseek-v4-flash" (see content/models.config.json's deepseek-v3
-  // entry notes).
-  const DEFAULT_MODEL = "deepseek-v3";
+  // Switched default from "deepseek-v3" to "deepseek-v4-flash" after the
+  // V3-era API models (deepseek-chat / deepseek-reasoner) were deprecated
+  // on 2026-07-24 (see content/models.config.json's deepseek-v3 entry notes).
+  const DEFAULT_MODEL = "deepseek-v4-flash";
 
   // DeepSeek's chat DOM classes are hashed/versioned and change often.
   // We use a generic heuristic here: any markdown-rendered block that
@@ -26,7 +24,8 @@
 
   const MODEL_PATTERNS = [
     [/flash/i, "deepseek-v4-flash"],
-    [/v3|v4/i, "deepseek-v3"],
+    [/v4(?!.*flash)/i, "deepseek-v4-flash"],
+    [/v3/i, "deepseek-v3"],
   ];
 
   function detectModel() {
