@@ -1,5 +1,5 @@
 {
-  "lastVerified": "2026-07-19",
+  "lastVerified": "2026-11-01",
   "_meta": {
     "description": "Per-model cost, water, and energy config for AI Water Meter. Replaces the v1 flat TIERS system. See ai-water-meter-v2-prd.md for full sourcing discussion.",
     "waterEnergyMethodology": {
@@ -26,14 +26,14 @@
     "claude-sonnet-5": {
       "provider": "Anthropic",
       "displayName": "Claude Sonnet 5",
-      "inputPricePerMTok": 2.00,
-      "outputPricePerMTok": 10.00,
+      "inputPricePerMTok": 3.00,
+      "outputPricePerMTok": 15.00,
       "waterMlPerOutputMTok": 45000,
       "energyWhPerOutputMTok": 41540,
       "methodologyTag": "public-estimate",
       "sourceUrl": "https://cloud.google.com/blog/products/infrastructure/measuring-the-environmental-impact-of-ai-inference",
-      "notes": "No Anthropic-published or independently-measured water/energy figure exists for this model. Water uses the generic public-estimate baseline (45 mL / 1000 output tokens); energy cross-derived via Google's measured Wh:mL ratio. Used as the reference point for scaling claude-haiku-4-5 and claude-opus-4-8. Confidence: low. PRICING NOTE: $2.00/$10.00 is Anthropic's introductory rate, expires 2026-08-31; standard rate becomes $3.00/$15.00 after that date. This file's `lastVerified` predates the switch — revisit before/at Sept 1 2026.",
-      "verified": "pricing confirmed via web search 2026-07-19 (unchanged from PRD, intro-rate window confirmed active); water/energy are derived estimates."
+      "notes": "No Anthropic-published or independently-measured water/energy figure exists for this model. Water uses the generic public-estimate baseline (45 mL / 1000 output tokens); energy cross-derived via Google's measured Wh:mL ratio. Used as the reference point for scaling claude-haiku-4-5 and claude-opus-4-8. Confidence: low. Standard rate of $3.00/$15.00 (input/output per MTok) is now active as of 2026-11-01; introductory rate window ended 2026-08-31.",
+      "verified": "pricing updated 2026-11-01: standard rate $3.00/$15.00 now active (introductory rate expired 2026-08-31); water/energy are derived estimates."
     },
     "claude-opus-4-8": {
       "provider": "Anthropic",
