@@ -284,6 +284,7 @@
   }
 
   // ---- icon rendering ---------------------------------------------------
+  let _cardUid = 0;
   const GLASS_ML = 250;              // 1 "glass" icon = 250ml
   const GLASSES_PER_BUCKET = 10;     // 10 glasses -> switch to bucket icon
   const BUCKET_ML = GLASS_ML * GLASSES_PER_BUCKET; // 2500ml per bucket
@@ -296,40 +297,44 @@
     return "glass";
   }
 
-  function glassSVG(fillPercent) {
+  function glassSVG(fillPercent, uid = "") {
     const p = Math.max(0, Math.min(100, fillPercent));
     const topY = 10 + (66 * (100 - p)) / 100; // glass body spans y=10..76
+    const clipId = `awmClip${uid}`;
+    const gradId = `awmWaterGrad${uid}`;
     return `<svg viewBox="0 0 60 84" class="awm-glass-svg">
       <defs>
-        <clipPath id="awmClip"><rect x="0" y="${topY}" width="60" height="84"/></clipPath>
+        <clipPath id="${clipId}"><rect x="0" y="${topY}" width="60" height="84"/></clipPath>
       </defs>
       <path d="M12 10 L48 10 L42 74 Q30 80 18 74 Z" fill="none" stroke="#5b6270" stroke-width="2.5"/>
-      <path d="M12 10 L48 10 L42 74 Q30 80 18 74 Z" fill="url(#awmWaterGrad)" clip-path="url(#awmClip)"/>
-      <linearGradient id="awmWaterGrad" x1="0" y1="0" x2="0" y2="1">
+      <path d="M12 10 L48 10 L42 74 Q30 80 18 74 Z" fill="url(#${gradId})" clip-path="url(#${clipId})"/>
+      <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stop-color="#6cc4f5"/>
         <stop offset="100%" stop-color="#2f8fd8"/>
       </linearGradient>
     </svg>`;
   }
 
-  function bucketSVG(fillPercent) {
+  function bucketSVG(fillPercent, uid = "") {
     const p = Math.max(0, Math.min(100, fillPercent));
     const topY = 18 + (56 * (100 - p)) / 100;
+    const clipId = `awmClipB${uid}`;
+    const gradId = `awmWaterGrad2${uid}`;
     return `<svg viewBox="0 0 60 84" class="awm-glass-svg">
       <defs>
-        <clipPath id="awmClipB"><rect x="0" y="${topY}" width="60" height="84"/></clipPath>
+        <clipPath id="${clipId}"><rect x="0" y="${topY}" width="60" height="84"/></clipPath>
       </defs>
       <path d="M10 22 L50 22 L44 76 Q30 82 16 76 Z" fill="none" stroke="#5b6270" stroke-width="2.5"/>
-      <path d="M10 22 L50 22 L44 76 Q30 82 16 76 Z" fill="url(#awmWaterGrad2)" clip-path="url(#awmClipB)"/>
+      <path d="M10 22 L50 22 L44 76 Q30 82 16 76 Z" fill="url(#${gradId})" clip-path="url(#${clipId})"/>
       <path d="M16 24 Q30 8 44 24" fill="none" stroke="#5b6270" stroke-width="3"/>
-      <linearGradient id="awmWaterGrad2" x1="0" y1="0" x2="0" y2="1">
+      <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stop-color="#6cc4f5"/>
         <stop offset="100%" stop-color="#2f8fd8"/>
       </linearGradient>
     </svg>`;
   }
 
-  function drumSVG() {
+  function drumSVG(uid = "") {
     return `<svg viewBox="0 0 60 84" class="awm-glass-svg">
       <rect x="10" y="14" width="40" height="62" rx="4" fill="#2f8fd8" stroke="#5b6270" stroke-width="2.5"/>
       <ellipse cx="30" cy="14" rx="20" ry="6" fill="#6cc4f5" stroke="#5b6270" stroke-width="2.5"/>
@@ -337,10 +342,10 @@
     </svg>`;
   }
 
-  function renderIcon(kind, fillPercent) {
-    if (kind === "drum") return drumSVG();
-    if (kind === "bucket") return bucketSVG(fillPercent);
-    return glassSVG(fillPercent);
+  function renderIcon(kind, fillPercent, uid = "") {
+    if (kind === "drum") return drumSVG(uid);
+    if (kind === "bucket") return bucketSVG(fillPercent, uid);
+    return glassSVG(fillPercent, uid);
   }
 
   function fmtMl(ml) {
@@ -410,6 +415,7 @@
 
   // ---- card builder -------------------------------------------------------
   async function createCard({ calcResult, session, modelDetected }) {
+    const cardUid = ++_cardUid;
     const waterMl = calcResult.waterMl;
     const contentType = calcResult.contentType || "text";
 
@@ -428,7 +434,7 @@
     const outTokLabel = contentType === "image" || contentType === "video" ? "out-equiv" : "out";
 
     card.innerHTML = `
-      <div class="awm-icon-wrap">${renderIcon(kind, 0)}</div>
+      <div class="awm-icon-wrap">${renderIcon(kind, 0, cardUid)}</div>
       <div class="awm-body">
         <div class="awm-header">
           <span class="awm-title">AI Impact</span>
@@ -474,7 +480,7 @@
       setTimeout(() => {
         const iconWrap = card.querySelector(".awm-icon-wrap");
         const barFill = card.querySelector(".awm-bar-fill");
-        iconWrap.innerHTML = renderIcon(kind, targetPercent);
+        iconWrap.innerHTML = renderIcon(kind, targetPercent, cardUid);
         iconWrap.classList.add("awm-animate");
         barFill.style.width = `${targetPercent}%`;
       }, 60);
